@@ -1,0 +1,46 @@
+{
+  "$schema": "Shared invoice-math test fixtures. Loaded by both packages/shared (TS) and apps/api (Python) test suites so the two implementations are guaranteed to agree to the fils. All monetary fields are integer fils.",
+  "country": "AE",
+  "cases": [
+    {
+      "name": "simple_standard_rate",
+      "input": { "description": "Item A", "quantity": 2, "unit_price": 1000, "vat_category": "standard" },
+      "expected": { "quantity": 2, "gross_amount": 2000, "discount_applied": 0, "taxable_amount": 2000, "vat_rate": 5, "vat_amount": 100, "line_total": 2100 }
+    },
+    {
+      "name": "area_based_item",
+      "input": { "description": "Glass panel", "width": 2.5, "height": 1.2, "unit_price": 500, "vat_category": "standard" },
+      "expected": { "quantity": 3, "gross_amount": 1500, "discount_applied": 0, "taxable_amount": 1500, "vat_rate": 5, "vat_amount": 75, "line_total": 1575 }
+    },
+    {
+      "name": "percentage_discount",
+      "input": { "description": "Item B", "quantity": 1, "unit_price": 2000, "discount_percent": 10, "vat_category": "standard" },
+      "expected": { "quantity": 1, "gross_amount": 2000, "discount_applied": 200, "taxable_amount": 1800, "vat_rate": 5, "vat_amount": 90, "line_total": 1890 }
+    },
+    {
+      "name": "fixed_discount_takes_precedence",
+      "input": { "description": "Item C", "quantity": 1, "unit_price": 2000, "discount_amount": 150, "discount_percent": 50, "vat_category": "standard" },
+      "expected": { "quantity": 1, "gross_amount": 2000, "discount_applied": 150, "taxable_amount": 1850, "vat_rate": 5, "vat_amount": 93, "line_total": 1943 }
+    },
+    {
+      "name": "zero_rated",
+      "input": { "description": "Export", "quantity": 1, "unit_price": 1000, "vat_category": "zero_rated" },
+      "expected": { "quantity": 1, "gross_amount": 1000, "discount_applied": 0, "taxable_amount": 1000, "vat_rate": 0, "vat_amount": 0, "line_total": 1000 }
+    },
+    {
+      "name": "exempt",
+      "input": { "description": "Residential rent", "quantity": 1, "unit_price": 1000, "vat_category": "exempt" },
+      "expected": { "quantity": 1, "gross_amount": 1000, "discount_applied": 0, "taxable_amount": 1000, "vat_rate": 0, "vat_amount": 0, "line_total": 1000 }
+    },
+    {
+      "name": "vat_rounds_half_away_from_zero",
+      "input": { "description": "Item D", "quantity": 3, "unit_price": 333, "vat_category": "standard" },
+      "expected": { "quantity": 3, "gross_amount": 999, "discount_applied": 0, "taxable_amount": 999, "vat_rate": 5, "vat_amount": 50, "line_total": 1049 }
+    },
+    {
+      "name": "defaults_quantity_to_one",
+      "input": { "description": "Service fee", "unit_price": 5000, "vat_category": "standard" },
+      "expected": { "quantity": 1, "gross_amount": 5000, "discount_applied": 0, "taxable_amount": 5000, "vat_rate": 5, "vat_amount": 250, "line_total": 5250 }
+    }
+  ]
+}
