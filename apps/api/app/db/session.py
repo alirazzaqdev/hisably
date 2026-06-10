@@ -11,10 +11,11 @@ settings = get_settings()
 # serverless deployments (Vercel) where the process can be frozen/recycled
 # between invocations and a persistent pool would leak/stall connections.
 engine = create_async_engine(
-    settings.database_url,
+    settings.sqlalchemy_database_url,
     echo=settings.debug,
     future=True,
     poolclass=NullPool,
+    connect_args=settings.sqlalchemy_connect_args,
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
