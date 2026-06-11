@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
+import { accountsApi } from "@/lib/api/accounts";
 import { customersApi } from "@/lib/api/customers";
 import { paymentsApi, type PaymentInput, type PaymentMethod } from "@/lib/api/payments";
 
@@ -37,8 +38,13 @@ export function PaymentForm() {
     queryKey: ["receivables"],
     queryFn: () => paymentsApi.receivables(),
   });
+  const { data: accounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => accountsApi.list(),
+  });
 
   const [customerId, setCustomerId] = useState("");
+  const [accountId, setAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [referenceNo, setReferenceNo] = useState("");
@@ -74,6 +80,7 @@ export function PaymentForm() {
     mutationFn: () => {
       const payload: PaymentInput = {
         customer_id: customerId || null,
+        account_id: accountId || null,
         amount,
         method,
         reference_no: referenceNo || null,
@@ -151,6 +158,17 @@ export function PaymentForm() {
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="account">Account</Label>
+              <Select id="account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                <option value="">No account</option>
+                {accounts?.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
                   </option>
                 ))}
               </Select>

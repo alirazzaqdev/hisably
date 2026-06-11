@@ -23,6 +23,7 @@ class PaymentAllocationOut(BaseModel):
 class PaymentCreate(BaseModel):
     customer_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None
+    account_id: uuid.UUID | None = None
     amount: Decimal = Field(gt=0)
     method: PaymentMethod = PaymentMethod.CASH
     reference_no: str | None = Field(default=None, max_length=100)
@@ -38,6 +39,7 @@ class PaymentOut(BaseModel):
     id: uuid.UUID
     customer_id: uuid.UUID | None
     supplier_id: uuid.UUID | None
+    account_id: uuid.UUID | None
     amount: Decimal
     method: PaymentMethod
     reference_no: str | None

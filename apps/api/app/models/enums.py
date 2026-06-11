@@ -58,6 +58,11 @@ class InvoiceLanguage(str, enum.Enum):
     BILINGUAL = "bilingual"
 
 
+class AccountType(str, enum.Enum):
+    CASH = "cash"
+    BANK = "bank"
+
+
 class PaymentMethod(str, enum.Enum):
     CASH = "cash"
     BANK_TRANSFER = "bank_transfer"

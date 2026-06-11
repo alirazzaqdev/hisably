@@ -1,6 +1,7 @@
 """Import all models so they register on Base.metadata (required for Alembic autogenerate)."""
 
 from app.db.base import Base
+from app.models.account import Account
 from app.models.activity import ActivityLog
 from app.models.attachment import Attachment
 from app.models.auth import RefreshToken
@@ -16,6 +17,7 @@ from app.models.user import User
 
 __all__ = [
     "Base",
+    "Account",
     "Tenant",
     "User",
     "Customer",

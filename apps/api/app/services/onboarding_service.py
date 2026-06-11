@@ -1,5 +1,8 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
+from app.models.enums import AccountType
 from app.models.tenant import Tenant
 from app.repositories import invoice_sequences as invoice_sequences_repo
 from app.schemas.tenant import OnboardingBusinessRequest
@@ -23,6 +26,13 @@ async def update_business(db: AsyncSession, tenant: Tenant, payload: OnboardingB
     tenant.invoice_prefix = payload.invoice_prefix
 
     await invoice_sequences_repo.create_default_sequences(db, tenant.id, payload.invoice_starting_number)
+
+    existing_account = (
+        await db.execute(select(Account).where(Account.tenant_id == tenant.id))
+    ).scalar_one_or_none()
+    if existing_account is None:
+        db.add(Account(tenant_id=tenant.id, name="Cash", type=AccountType.CASH))
+
     await db.commit()
     await db.refresh(tenant)
     return tenant

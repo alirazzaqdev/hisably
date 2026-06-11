@@ -43,6 +43,7 @@ async def create(db: AsyncSession, tenant_id: uuid.UUID, payload: PaymentCreate)
         tenant_id=tenant_id,
         customer_id=payload.customer_id,
         supplier_id=payload.supplier_id,
+        account_id=payload.account_id,
         amount=payload.amount,
         method=payload.method,
         reference_no=payload.reference_no,

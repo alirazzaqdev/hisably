@@ -19,6 +19,7 @@ export interface Payment {
   id: string;
   customer_id: string | null;
   supplier_id: string | null;
+  account_id: string | null;
   amount: string;
   method: PaymentMethod;
   reference_no: string | null;
@@ -30,6 +31,7 @@ export interface Payment {
 export interface PaymentInput {
   customer_id?: string | null;
   supplier_id?: string | null;
+  account_id?: string | null;
   amount: string;
   method: PaymentMethod;
   reference_no?: string | null;

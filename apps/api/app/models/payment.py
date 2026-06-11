@@ -14,6 +14,7 @@ class Payment(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
 
     customer_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("customers.id"), nullable=True)
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("suppliers.id"), nullable=True)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
 
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod, native_enum=False))
