@@ -11,6 +11,7 @@ from app.models.item import Item
 from app.models.item_category import ItemCategory
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment, PaymentAllocation
+from app.models.price_list import ItemPrice, PriceList
 from app.models.recurring_invoice import RecurringInvoice
 from app.models.stock import StockMovement
 from app.models.sync import SyncLogEntry
@@ -31,6 +32,8 @@ __all__ = [
     "InvoiceNumberSequence",
     "Payment",
     "PaymentAllocation",
+    "PriceList",
+    "ItemPrice",
     "ExpenseEntry",
     "RecurringInvoice",
     "StockMovement",

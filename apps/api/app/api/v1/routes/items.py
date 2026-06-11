@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_tenant
 from app.db.session import get_db
 from app.models.tenant import Tenant
+from app.repositories import item_prices as item_prices_repo
 from app.repositories import items as items_repo
 from app.schemas.common import Page
 from app.schemas.item import ItemCreate, ItemOut, ItemUpdate
+from app.schemas.price_list import ItemPriceInput, ItemPriceOut
 
 router = APIRouter(prefix="/items", tags=["items"])
 
@@ -73,6 +75,34 @@ async def update_item(
     item = await items_repo.update(db, item, payload)
     await db.commit()
     return ItemOut.model_validate(item)
+
+
+@router.get("/{item_id}/prices", response_model=list[ItemPriceOut])
+async def list_item_prices(
+    item_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> list[ItemPriceOut]:
+    item = await items_repo.get_by_id(db, tenant.id, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    prices = await item_prices_repo.list_for_item(db, tenant.id, item_id)
+    return [ItemPriceOut.model_validate(p) for p in prices]
+
+
+@router.put("/{item_id}/prices", response_model=list[ItemPriceOut])
+async def set_item_prices(
+    item_id: uuid.UUID,
+    payload: list[ItemPriceInput],
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> list[ItemPriceOut]:
+    item = await items_repo.get_by_id(db, tenant.id, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    prices = await item_prices_repo.set_for_item(db, tenant.id, item_id, payload)
+    await db.commit()
+    return [ItemPriceOut.model_validate(p) for p in prices]
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)

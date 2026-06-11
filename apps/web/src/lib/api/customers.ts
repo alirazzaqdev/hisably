@@ -11,6 +11,7 @@ export interface Customer {
   billing_address: string | null;
   opening_balance: string;
   credit_limit: string | null;
+  price_list_id: string | null;
 }
 
 export interface CustomerInput {
@@ -22,6 +23,7 @@ export interface CustomerInput {
   billing_address?: string | null;
   opening_balance?: string;
   credit_limit?: string | null;
+  price_list_id?: string | null;
 }
 
 export const customersApi = {

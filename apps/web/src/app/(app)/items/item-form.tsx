@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import { itemCategoriesApi } from "@/lib/api/item-categories";
 import { itemsApi, type Item, type ItemInput } from "@/lib/api/items";
+import { itemPricesApi, priceListsApi } from "@/lib/api/price-lists";
 import { createOrQueue } from "@/lib/offline/sync-engine";
 
 const UNITS = ["pcs", "sqm", "sqft", "kg", "m", "box", "ltr"] as const;
@@ -43,9 +44,37 @@ export function ItemForm({ item }: { item?: Item }) {
     queryFn: () => itemCategoriesApi.list(),
   });
 
+  const { data: priceLists } = useQuery({
+    queryKey: ["price-lists"],
+    queryFn: () => priceListsApi.list(),
+  });
+
+  const { data: existingPrices } = useQuery({
+    queryKey: ["item-prices", item?.id],
+    queryFn: () => itemPricesApi.list(item!.id),
+    enabled: isEditing,
+  });
+
+  const [priceListPrices, setPriceListPrices] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!existingPrices) return;
+    setPriceListPrices(Object.fromEntries(existingPrices.map((p) => [p.price_list_id, p.price])));
+  }, [existingPrices]);
+
   const saveMutation = useMutation({
-    mutationFn: () =>
-      isEditing ? itemsApi.update(item!.id, form) : createOrQueue("item", form, itemsApi.create),
+    mutationFn: async () => {
+      const saved = isEditing
+        ? await itemsApi.update(item!.id, form)
+        : await createOrQueue("item", form, itemsApi.create);
+      if (saved && priceLists?.length) {
+        const entries = Object.entries(priceListPrices)
+          .filter(([, price]) => price.trim() !== "")
+          .map(([price_list_id, price]) => ({ price_list_id, price }));
+        await itemPricesApi.set(saved.id, entries);
+      }
+      return saved;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       router.push("/items");
@@ -167,6 +196,31 @@ export function ItemForm({ item }: { item?: Item }) {
               ))}
             </Select>
           </div>
+
+          {priceLists && priceLists.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Price list prices</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {priceLists.map((priceList) => (
+                  <div key={priceList.id} className="flex flex-col gap-1.5">
+                    <Label htmlFor={`price-${priceList.id}`} className="text-muted-foreground">
+                      {priceList.name}
+                    </Label>
+                    <Input
+                      id={`price-${priceList.id}`}
+                      type="number"
+                      step="0.01"
+                      placeholder="Use sale price"
+                      value={priceListPrices[priceList.id] ?? ""}
+                      onChange={(e) =>
+                        setPriceListPrices((prev) => ({ ...prev, [priceList.id]: e.target.value }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <FormError>{formError}</FormError>
 

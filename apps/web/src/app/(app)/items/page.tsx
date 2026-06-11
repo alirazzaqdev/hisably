@@ -35,6 +35,9 @@ export default function ItemsPage() {
           <Button asChild variant="secondary">
             <Link href="/item-categories">Manage categories</Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link href="/price-lists">Manage price lists</Link>
+          </Button>
           <Button asChild>
             <Link href="/items/new">
               <Plus className="h-4 w-4" />

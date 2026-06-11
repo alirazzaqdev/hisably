@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Numeric, String
+from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -24,6 +24,9 @@ class Customer(Base, PartyMixin):
     __tablename__ = "customers"
 
     credit_limit: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    price_list_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("price_lists.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class Supplier(Base, PartyMixin):

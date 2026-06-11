@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import { customersApi, type Customer, type CustomerInput } from "@/lib/api/customers";
+import { priceListsApi } from "@/lib/api/price-lists";
 import { createOrQueue } from "@/lib/offline/sync-engine";
 
 export function CustomerForm({ customer }: { customer?: Customer }) {
@@ -24,8 +26,14 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
     trn: customer?.trn ?? "",
     billing_address: customer?.billing_address ?? "",
     opening_balance: customer?.opening_balance ?? "0",
+    price_list_id: customer?.price_list_id ?? null,
   });
   const [formError, setFormError] = useState<string | null>(null);
+
+  const { data: priceLists } = useQuery({
+    queryKey: ["price-lists"],
+    queryFn: () => priceListsApi.list(),
+  });
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -124,6 +132,24 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
               onChange={(e) => update("billing_address", e.target.value)}
             />
           </div>
+
+          {priceLists && priceLists.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="price_list_id">Price list</Label>
+              <Select
+                id="price_list_id"
+                value={form.price_list_id ?? ""}
+                onChange={(e) => update("price_list_id", e.target.value || null)}
+              >
+                <option value="">Default (sale price)</option>
+                {priceLists.map((priceList) => (
+                  <option key={priceList.id} value={priceList.id}>
+                    {priceList.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <FormError>{formError}</FormError>
 

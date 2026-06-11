@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/api-client";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
 import { itemsApi, type VatCategory } from "@/lib/api/items";
+import { priceListsApi } from "@/lib/api/price-lists";
 import { invoicesApi, type Invoice, type InvoiceInput, type InvoiceLineItemInput, type InvoiceType } from "@/lib/api/invoices";
 
 const VAT_CATEGORIES: { value: VatCategory; label: string; rate: number }[] = [
@@ -91,6 +92,14 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   );
   const [formError, setFormError] = useState<string | null>(null);
 
+  const selectedCustomer = customers?.items.find((c) => c.id === customerId);
+  const { data: priceListItems } = useQuery({
+    queryKey: ["price-lists", selectedCustomer?.price_list_id, "prices"],
+    queryFn: () => priceListsApi.itemPrices(selectedCustomer!.price_list_id!),
+    enabled: Boolean(selectedCustomer?.price_list_id),
+  });
+  const priceByItemId = new Map(priceListItems?.map((p) => [p.item_id, p.price]));
+
   useEffect(() => {
     if (!sourceInvoice || isEditing) return;
     setCustomerId(sourceInvoice.customer_id ?? "");
@@ -159,7 +168,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     updateLine(index, {
       item_id: item.id,
       description: item.name,
-      unit_price: item.sale_price,
+      unit_price: priceByItemId.get(item.id) ?? item.sale_price,
       vat_category: item.vat_category,
     });
   }

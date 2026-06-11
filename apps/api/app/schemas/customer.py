@@ -13,6 +13,7 @@ class CustomerCreate(BaseModel):
     billing_address: str | None = Field(default=None, max_length=500)
     opening_balance: Decimal = Decimal("0")
     credit_limit: Decimal | None = None
+    price_list_id: uuid.UUID | None = None
     client_uuid: uuid.UUID | None = None
 
 
@@ -25,6 +26,7 @@ class CustomerUpdate(BaseModel):
     billing_address: str | None = Field(default=None, max_length=500)
     opening_balance: Decimal | None = None
     credit_limit: Decimal | None = None
+    price_list_id: uuid.UUID | None = None
 
 
 class CustomerOut(BaseModel):
@@ -39,3 +41,4 @@ class CustomerOut(BaseModel):
     billing_address: str | None
     opening_balance: Decimal
     credit_limit: Decimal | None
+    price_list_id: uuid.UUID | None
