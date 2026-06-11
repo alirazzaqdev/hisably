@@ -43,3 +43,23 @@ async def client(db_session):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def auth_headers(client, monkeypatch) -> dict[str, str]:
+    """Signs up, verifies, and logs in a fresh user; returns Bearer auth headers."""
+    from app.services import auth_service
+
+    captured: dict[str, str] = {}
+
+    def fake_send_otp_email(to_email: str, otp_code: str, purpose: str = "") -> None:
+        captured[to_email] = otp_code
+
+    monkeypatch.setattr(auth_service, "send_otp_email", fake_send_otp_email)
+
+    email = "owner@example.com"
+    await client.post("/api/v1/auth/signup", json={"email": email, "password": "supersecret"})
+    otp_code = captured[email]
+    verify_resp = await client.post("/api/v1/auth/verify-otp", json={"email": email, "otp_code": otp_code})
+    access_token = verify_resp.json()["access_token"]
+    return {"Authorization": f"Bearer {access_token}"}
