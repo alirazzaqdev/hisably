@@ -6,7 +6,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import InvoiceStatus
+from app.models.enums import InvoiceStatus, InvoiceType
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
 from app.models.tenant import Tenant
 from app.repositories.invoice_sequences import SEQUENCED_INVOICE_TYPES
