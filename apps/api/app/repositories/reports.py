@@ -5,12 +5,21 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import InvoiceStatus
+from app.models.enums import InvoiceStatus, InvoiceType
 from app.models.expense import ExpenseEntry
 from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.item import Item
-from app.models.party import Customer
+from app.models.party import Customer, Supplier
+from app.models.payment import Payment
 from app.repositories.payments import get_paid_amount
+from app.schemas.reports import DayBookEntry
+
+INVOICE_DAY_BOOK_DIRECTIONS = {
+    InvoiceType.TAX_INVOICE: "in",
+    InvoiceType.CREDIT_NOTE: "out",
+    InvoiceType.DEBIT_NOTE: "in",
+    InvoiceType.PURCHASE_BILL: "out",
+}
 
 
 async def count_customers(db: AsyncSession, tenant_id: uuid.UUID) -> int:
@@ -188,3 +197,86 @@ async def vat_summary(
     output_vat = (await db.execute(invoice_query)).scalar_one()
     input_vat = (await db.execute(expense_query)).scalar_one()
     return output_vat, input_vat
+
+
+async def day_book(
+    db: AsyncSession, tenant_id: uuid.UUID, *, date_from: date, date_to: date
+) -> tuple[list[DayBookEntry], Decimal, Decimal]:
+    entries: list[DayBookEntry] = []
+
+    invoice_query = (
+        select(Invoice, Customer.name, Supplier.name)
+        .outerjoin(Customer, Invoice.customer_id == Customer.id)
+        .outerjoin(Supplier, Invoice.supplier_id == Supplier.id)
+        .where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.status != InvoiceStatus.VOID,
+            Invoice.type.in_(list(INVOICE_DAY_BOOK_DIRECTIONS)),
+            Invoice.issue_date >= date_from,
+            Invoice.issue_date <= date_to,
+        )
+    )
+    for invoice, customer_name, supplier_name in (await db.execute(invoice_query)).all():
+        entries.append(
+            DayBookEntry(
+                id=invoice.id,
+                entry_date=invoice.issue_date,
+                type=invoice.type.value,
+                reference=invoice.invoice_number or invoice.draft_number,
+                party_name=customer_name or supplier_name,
+                amount=invoice.grand_total,
+                direction=INVOICE_DAY_BOOK_DIRECTIONS[invoice.type],
+            )
+        )
+
+    payment_query = (
+        select(Payment, Customer.name, Supplier.name)
+        .outerjoin(Customer, Payment.customer_id == Customer.id)
+        .outerjoin(Supplier, Payment.supplier_id == Supplier.id)
+        .where(
+            Payment.tenant_id == tenant_id,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to,
+        )
+    )
+    for payment, customer_name, supplier_name in (await db.execute(payment_query)).all():
+        entries.append(
+            DayBookEntry(
+                id=payment.id,
+                entry_date=payment.payment_date,
+                type="payment",
+                reference=payment.reference_no or "Payment",
+                party_name=customer_name or supplier_name,
+                amount=payment.amount,
+                direction="in" if payment.customer_id is not None else "out",
+            )
+        )
+
+    expense_query = (
+        select(ExpenseEntry, Supplier.name)
+        .outerjoin(Supplier, ExpenseEntry.supplier_id == Supplier.id)
+        .where(
+            ExpenseEntry.tenant_id == tenant_id,
+            ExpenseEntry.expense_date >= date_from,
+            ExpenseEntry.expense_date <= date_to,
+        )
+    )
+    for expense, supplier_name in (await db.execute(expense_query)).all():
+        entries.append(
+            DayBookEntry(
+                id=expense.id,
+                entry_date=expense.expense_date,
+                type="expense",
+                reference=expense.category,
+                party_name=supplier_name,
+                amount=expense.amount,
+                direction="out",
+            )
+        )
+
+    entries.sort(key=lambda e: e.entry_date)
+
+    total_in = sum((e.amount for e in entries if e.direction == "in"), Decimal("0"))
+    total_out = sum((e.amount for e in entries if e.direction == "out"), Decimal("0"))
+    return entries, total_in, total_out

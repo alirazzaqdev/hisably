@@ -88,3 +88,40 @@ async def test_dashboard_kpis_and_reports(client, auth_headers):
 async def test_dashboard_requires_auth(client):
     resp = await client.get("/api/v1/dashboard/kpis")
     assert resp.status_code == 401
+
+
+async def test_day_book(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, "100.00", issue_date="2026-06-10")
+    invoice_id = invoice["id"]
+
+    await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "amount": "105.00",
+            "method": "cash",
+            "payment_date": "2026-06-10",
+            "allocations": [{"invoice_id": invoice_id, "amount": "105.00"}],
+        },
+        headers=auth_headers,
+    )
+
+    await client.post(
+        "/api/v1/expenses",
+        json={"category": "Rent", "amount": "500.00", "vat_paid": "25.00", "expense_date": "2026-06-10"},
+        headers=auth_headers,
+    )
+
+    resp = await client.get("/api/v1/reports/day-book", params={"date_from": "2026-06-10"}, headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    types = {entry["type"] for entry in data["entries"]}
+    assert types == {"tax_invoice", "payment", "expense"}
+    assert data["total_in"] == "210.00"
+    assert data["total_out"] == "500.00"
+
+    other_day_resp = await client.get(
+        "/api/v1/reports/day-book", params={"date_from": "2026-06-11"}, headers=auth_headers
+    )
+    assert other_day_resp.json()["entries"] == []

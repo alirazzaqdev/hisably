@@ -42,6 +42,22 @@ export interface VatSummary {
   net_vat_due: string;
 }
 
+export interface DayBookEntry {
+  id: string;
+  entry_date: string;
+  type: string;
+  reference: string;
+  party_name: string | null;
+  amount: string;
+  direction: "in" | "out";
+}
+
+export interface DayBookResponse {
+  entries: DayBookEntry[];
+  total_in: string;
+  total_out: string;
+}
+
 export const reportsApi = {
   kpis: () => apiRequest<DashboardKpis>("/dashboard/kpis"),
   salesTrend: (months = 6) => apiRequest<SalesTrendPoint[]>(`/dashboard/sales-trend?months=${months}`),
@@ -54,5 +70,12 @@ export const reportsApi = {
     if (params.dateTo) query.set("date_to", params.dateTo);
     const qs = query.toString();
     return apiRequest<VatSummary>(`/reports/vat-summary${qs ? `?${qs}` : ""}`);
+  },
+  dayBook: (params: { dateFrom?: string; dateTo?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.dateFrom) query.set("date_from", params.dateFrom);
+    if (params.dateTo) query.set("date_to", params.dateTo);
+    const qs = query.toString();
+    return apiRequest<DayBookResponse>(`/reports/day-book${qs ? `?${qs}` : ""}`);
   },
 };

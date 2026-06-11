@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -44,3 +45,19 @@ class VatSummary(BaseModel):
     output_vat: Decimal
     input_vat: Decimal
     net_vat_due: Decimal
+
+
+class DayBookEntry(BaseModel):
+    id: uuid.UUID
+    entry_date: date
+    type: str
+    reference: str
+    party_name: str | None
+    amount: Decimal
+    direction: str
+
+
+class DayBookResponse(BaseModel):
+    entries: list[DayBookEntry]
+    total_in: Decimal
+    total_out: Decimal

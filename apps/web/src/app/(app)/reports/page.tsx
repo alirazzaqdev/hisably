@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { reportsApi } from "@/lib/api/reports";
@@ -21,7 +22,12 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h1 text-foreground">Reports</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-h1 text-foreground">Reports</h1>
+        <Link href="/reports/day-book" className="text-body-sm text-accent-700 hover:underline">
+          Day book →
+        </Link>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
