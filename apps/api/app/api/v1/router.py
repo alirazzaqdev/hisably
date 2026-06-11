@@ -11,6 +11,7 @@ from app.api.v1.routes import (
     items,
     onboarding,
     payments,
+    recurring_invoices,
     reports,
     suppliers,
     sync,
@@ -35,3 +36,4 @@ api_router.include_router(dashboard.router)
 api_router.include_router(sync.router)
 api_router.include_router(attachments.router)
 api_router.include_router(accounts.router)
+api_router.include_router(recurring_invoices.router)

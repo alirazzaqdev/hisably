@@ -77,6 +77,13 @@ class ChequeStatus(str, enum.Enum):
     BOUNCED = "bounced"
 
 
+class RecurrenceFrequency(str, enum.Enum):
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
 class StockMovementReason(str, enum.Enum):
     SALE = "sale"
     PURCHASE = "purchase"

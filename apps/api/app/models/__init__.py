@@ -10,6 +10,7 @@ from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
 from app.models.item import Item
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment, PaymentAllocation
+from app.models.recurring_invoice import RecurringInvoice
 from app.models.stock import StockMovement
 from app.models.sync import SyncLogEntry
 from app.models.tenant import Tenant
@@ -29,6 +30,7 @@ __all__ = [
     "Payment",
     "PaymentAllocation",
     "ExpenseEntry",
+    "RecurringInvoice",
     "StockMovement",
     "ActivityLog",
     "Attachment",
