@@ -8,6 +8,7 @@ from app.models.auth import RefreshToken
 from app.models.expense import ExpenseEntry
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
 from app.models.item import Item
+from app.models.item_category import ItemCategory
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment, PaymentAllocation
 from app.models.recurring_invoice import RecurringInvoice
@@ -24,6 +25,7 @@ __all__ = [
     "Customer",
     "Supplier",
     "Item",
+    "ItemCategory",
     "Invoice",
     "InvoiceLineItem",
     "InvoiceNumberSequence",

@@ -18,6 +18,7 @@ class ItemCreate(BaseModel):
     track_inventory: bool = False
     current_stock: Decimal | None = None
     low_stock_threshold: Decimal | None = None
+    category_id: uuid.UUID | None = None
     client_uuid: uuid.UUID | None = None
 
 
@@ -33,6 +34,7 @@ class ItemUpdate(BaseModel):
     track_inventory: bool | None = None
     current_stock: Decimal | None = None
     low_stock_threshold: Decimal | None = None
+    category_id: uuid.UUID | None = None
 
 
 class ItemOut(BaseModel):
@@ -50,3 +52,4 @@ class ItemOut(BaseModel):
     track_inventory: bool
     current_stock: Decimal | None
     low_stock_threshold: Decimal | None
+    category_id: uuid.UUID | None

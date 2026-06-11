@@ -16,12 +16,15 @@ router = APIRouter(prefix="/items", tags=["items"])
 @router.get("", response_model=Page[ItemOut])
 async def list_items(
     search: str | None = Query(default=None),
+    category_id: uuid.UUID | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> Page[ItemOut]:
-    items, total = await items_repo.list_paginated(db, tenant.id, search=search, page=page, page_size=page_size)
+    items, total = await items_repo.list_paginated(
+        db, tenant.id, search=search, category_id=category_id, page=page, page_size=page_size
+    )
     return Page(items=[ItemOut.model_validate(i) for i in items], total=total, page=page, page_size=page_size)
 
 

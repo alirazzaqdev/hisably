@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Enum, Numeric, String
+from sqlalchemy import Boolean, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -28,3 +28,6 @@ class Item(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     low_stock_threshold: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
 
     client_uuid: Mapped[uuid.UUID | None] = mapped_column(nullable=True, unique=True)
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("item_categories.id", ondelete="SET NULL"), nullable=True
+    )

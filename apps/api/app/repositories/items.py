@@ -20,7 +20,13 @@ async def get_by_id(db: AsyncSession, tenant_id: uuid.UUID, item_id: uuid.UUID) 
 
 
 async def list_paginated(
-    db: AsyncSession, tenant_id: uuid.UUID, *, search: str | None, page: int, page_size: int
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    *,
+    search: str | None,
+    category_id: uuid.UUID | None = None,
+    page: int,
+    page_size: int,
 ) -> tuple[list[Item], int]:
     query = select(Item).where(Item.tenant_id == tenant_id)
     count_query = select(func.count()).select_from(Item).where(Item.tenant_id == tenant_id)
@@ -30,6 +36,10 @@ async def list_paginated(
         condition = or_(Item.name.ilike(pattern), Item.sku.ilike(pattern))
         query = query.where(condition)
         count_query = count_query.where(condition)
+
+    if category_id is not None:
+        query = query.where(Item.category_id == category_id)
+        count_query = count_query.where(Item.category_id == category_id)
 
     total = (await db.execute(count_query)).scalar_one()
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-message";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
+import { itemCategoriesApi } from "@/lib/api/item-categories";
 import { itemsApi, type Item, type ItemInput } from "@/lib/api/items";
 import { createOrQueue } from "@/lib/offline/sync-engine";
 
@@ -33,8 +34,14 @@ export function ItemForm({ item }: { item?: Item }) {
     purchase_price: item?.purchase_price ?? "0",
     vat_category: item?.vat_category ?? "standard",
     track_inventory: item?.track_inventory ?? false,
+    category_id: item?.category_id ?? null,
   });
   const [formError, setFormError] = useState<string | null>(null);
+
+  const { data: categories } = useQuery({
+    queryKey: ["item-categories"],
+    queryFn: () => itemCategoriesApi.list(),
+  });
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -128,6 +135,22 @@ export function ItemForm({ item }: { item?: Item }) {
                 onChange={(e) => update("purchase_price", e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="category_id">Category</Label>
+            <Select
+              id="category_id"
+              value={form.category_id ?? ""}
+              onChange={(e) => update("category_id", e.target.value || null)}
+            >
+              <option value="">No category</option>
+              {categories?.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5">

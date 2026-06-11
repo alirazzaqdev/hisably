@@ -17,6 +17,7 @@ export interface Item {
   track_inventory: boolean;
   current_stock: string | null;
   low_stock_threshold: string | null;
+  category_id: string | null;
 }
 
 export interface ItemInput {
@@ -31,12 +32,14 @@ export interface ItemInput {
   track_inventory?: boolean;
   current_stock?: string | null;
   low_stock_threshold?: string | null;
+  category_id?: string | null;
 }
 
 export const itemsApi = {
-  list: (params: { search?: string; page?: number; pageSize?: number } = {}) => {
+  list: (params: { search?: string; categoryId?: string; page?: number; pageSize?: number } = {}) => {
     const query = new URLSearchParams();
     if (params.search) query.set("search", params.search);
+    if (params.categoryId) query.set("category_id", params.categoryId);
     if (params.page) query.set("page", String(params.page));
     if (params.pageSize) query.set("page_size", String(params.pageSize));
     const qs = query.toString();
