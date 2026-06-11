@@ -153,3 +153,33 @@ async def test_quotation_can_be_converted_to_tax_invoice(client, auth_headers):
 
     type_filter_resp = await client.get("/api/v1/invoices", params={"type": "quotation"}, headers=auth_headers)
     assert type_filter_resp.json()["total"] == 1
+
+
+async def test_invoice_share_link_and_public_pdf(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    invoice_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "line_items": [
+                {"description": "Glass panel", "quantity": "1", "unit_price": "100.00", "vat_category": "standard"},
+            ],
+        },
+        headers=auth_headers,
+    )
+    invoice = invoice_resp.json()
+    assert invoice["public_token"] is None
+
+    share_resp = await client.post(f"/api/v1/invoices/{invoice['id']}/share", headers=auth_headers)
+    assert share_resp.status_code == 200
+    token = share_resp.json()["public_token"]
+    assert token
+
+    pdf_resp = await client.get(f"/api/v1/public/invoices/{token}/pdf")
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"] == "application/pdf"
+    assert pdf_resp.content[:4] == b"%PDF"
+
+    bad_resp = await client.get("/api/v1/public/invoices/not-a-real-token/pdf")
+    assert bad_resp.status_code == 404

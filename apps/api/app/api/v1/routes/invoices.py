@@ -111,6 +111,20 @@ async def delete_invoice(
     await db.commit()
 
 
+@router.post("/{invoice_id}/share", response_model=InvoiceOut)
+async def share_invoice(
+    invoice_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> InvoiceOut:
+    invoice = await invoices_repo.get_by_id(db, tenant.id, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    await invoices_repo.ensure_public_token(db, invoice)
+    await db.commit()
+    return _to_out(invoice)
+
+
 @router.get("/{invoice_id}/pdf")
 async def get_invoice_pdf(
     invoice_id: uuid.UUID,

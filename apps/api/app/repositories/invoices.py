@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -142,6 +143,21 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
 
 async def get_by_id(db: AsyncSession, tenant_id: uuid.UUID, invoice_id: uuid.UUID) -> Invoice | None:
     result = await db.execute(select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == tenant_id))
+    invoice = result.scalar_one_or_none()
+    if invoice is not None:
+        invoice.line_items_loaded = await get_line_items(db, invoice.id)
+    return invoice
+
+
+async def ensure_public_token(db: AsyncSession, invoice: Invoice) -> str:
+    if invoice.public_token is None:
+        invoice.public_token = secrets.token_urlsafe(24)
+        await db.flush()
+    return invoice.public_token
+
+
+async def get_by_public_token(db: AsyncSession, public_token: str) -> Invoice | None:
+    result = await db.execute(select(Invoice).where(Invoice.public_token == public_token))
     invoice = result.scalar_one_or_none()
     if invoice is not None:
         invoice.line_items_loaded = await get_line_items(db, invoice.id)

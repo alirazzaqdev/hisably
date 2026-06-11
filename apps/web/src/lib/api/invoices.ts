@@ -58,6 +58,7 @@ export interface Invoice {
   terms: string | null;
   void_reason: string | null;
   converted_from_id: string | null;
+  public_token: string | null;
   line_items: InvoiceLineItem[];
 }
 
@@ -97,6 +98,8 @@ export const invoicesApi = {
       body: JSON.stringify({ status, void_reason: voidReason }),
     }),
   remove: (id: string) => apiRequest<void>(`/invoices/${id}`, { method: "DELETE" }),
+  share: (id: string) => apiRequest<Invoice>(`/invoices/${id}/share`, { method: "POST" }),
+  publicPdfUrl: (token: string) => `${API_BASE_URL}/public/invoices/${token}/pdf`,
   pdfBlob: async (id: string): Promise<Blob> => {
     const { accessToken } = useAuthStore.getState();
     const res = await fetch(`${API_BASE_URL}/invoices/${id}/pdf`, {

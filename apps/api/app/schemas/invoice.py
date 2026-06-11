@@ -99,4 +99,5 @@ class InvoiceOut(BaseModel):
     language: InvoiceLanguage
     void_reason: str | None
     converted_from_id: uuid.UUID | None
+    public_token: str | None
     line_items: list[InvoiceLineItemOut] = Field(default_factory=list)

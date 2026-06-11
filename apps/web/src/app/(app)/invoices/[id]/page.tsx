@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Pencil } from "lucide-react";
+import { Download, MessageCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { customersApi } from "@/lib/api/customers";
@@ -26,6 +26,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
   const queryClient = useQueryClient();
   const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ["invoices", id],
@@ -81,6 +82,19 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  async function shareViaWhatsApp() {
+    if (!invoice) return;
+    setSharing(true);
+    try {
+      const shared = await invoicesApi.share(invoice.id);
+      const pdfUrl = invoicesApi.publicPdfUrl(shared.public_token!);
+      const message = `Invoice ${shared.invoice_number ?? shared.draft_number}: ${pdfUrl}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+    } finally {
+      setSharing(false);
+    }
+  }
+
   if (isLoading || !invoice) {
     return <p className="text-body text-muted-foreground">Loading…</p>;
   }
@@ -105,6 +119,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <Button variant="secondary" onClick={downloadPdf} disabled={downloading}>
             <Download className="h-4 w-4" />
             {downloading ? "Preparing…" : "Download PDF"}
+          </Button>
+          <Button variant="secondary" onClick={shareViaWhatsApp} disabled={sharing}>
+            <MessageCircle className="h-4 w-4" />
+            {sharing ? "Preparing…" : "Share via WhatsApp"}
           </Button>
           {canEdit && (
             <Button asChild variant="secondary">
