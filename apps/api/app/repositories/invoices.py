@@ -125,6 +125,7 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         notes=payload.notes,
         terms=payload.terms,
         pdf_template=payload.pdf_template,
+        accent_color=payload.accent_color,
         language=payload.language,
         converted_from_id=payload.converted_from_id,
         **summary,

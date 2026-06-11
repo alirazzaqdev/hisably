@@ -7,6 +7,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/a
 
 export type InvoiceType = "tax_invoice" | "quotation" | "proforma" | "credit_note" | "debit_note" | "purchase_bill";
 export type InvoiceStatus = "draft" | "sent" | "partially_paid" | "paid" | "overdue" | "void";
+export type PdfTemplate = "minimal" | "classic" | "bold";
+export type InvoiceLanguage = "en" | "ar" | "bilingual";
 
 export interface InvoiceLineItem {
   id: string;
@@ -56,6 +58,9 @@ export interface Invoice {
   grand_total: string;
   notes: string | null;
   terms: string | null;
+  pdf_template: PdfTemplate;
+  accent_color: string | null;
+  language: InvoiceLanguage;
   void_reason: string | null;
   converted_from_id: string | null;
   public_token: string | null;
@@ -72,6 +77,9 @@ export interface InvoiceInput {
   discount_amount?: string;
   notes?: string | null;
   terms?: string | null;
+  pdf_template?: PdfTemplate;
+  accent_color?: string | null;
+  language?: InvoiceLanguage;
   line_items: InvoiceLineItemInput[];
   converted_from_id?: string | null;
 }

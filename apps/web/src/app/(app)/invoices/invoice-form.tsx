@@ -15,7 +15,15 @@ import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
 import { itemsApi, type Item, type VatCategory } from "@/lib/api/items";
 import { priceListsApi } from "@/lib/api/price-lists";
-import { invoicesApi, type Invoice, type InvoiceInput, type InvoiceLineItemInput, type InvoiceType } from "@/lib/api/invoices";
+import {
+  invoicesApi,
+  type Invoice,
+  type InvoiceInput,
+  type InvoiceLanguage,
+  type InvoiceLineItemInput,
+  type InvoiceType,
+  type PdfTemplate,
+} from "@/lib/api/invoices";
 
 const VAT_CATEGORIES: { value: VatCategory; label: string; rate: number }[] = [
   { value: "standard", label: "Standard (5%)", rate: 5 },
@@ -33,6 +41,18 @@ const DOCUMENT_TYPES: { value: InvoiceType; label: string }[] = [
 ];
 
 const SUPPLIER_TYPES: InvoiceType[] = ["purchase_bill", "debit_note"];
+
+const PDF_TEMPLATES: { value: PdfTemplate; label: string }[] = [
+  { value: "minimal", label: "Minimal" },
+  { value: "classic", label: "Classic" },
+  { value: "bold", label: "Bold" },
+];
+
+const INVOICE_LANGUAGES: { value: InvoiceLanguage; label: string }[] = [
+  { value: "en", label: "English" },
+  { value: "ar", label: "Arabic" },
+  { value: "bilingual", label: "Bilingual (EN/AR)" },
+];
 
 function emptyLine(): InvoiceLineItemInput {
   return { description: "", quantity: "1", unit_price: "0", vat_category: "standard" };
@@ -78,6 +98,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const [notes, setNotes] = useState(invoice?.notes ?? "");
   const [terms, setTerms] = useState(invoice?.terms ?? "");
   const [discountAmount, setDiscountAmount] = useState(invoice?.discount_amount ?? "0");
+  const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>(invoice?.pdf_template ?? "minimal");
+  const [accentColor, setAccentColor] = useState(invoice?.accent_color ?? "");
+  const [language, setLanguage] = useState<InvoiceLanguage>(invoice?.language ?? "en");
   const [lines, setLines] = useState<InvoiceLineItemInput[]>(
     invoice?.line_items?.length
       ? invoice.line_items.map((li) => ({
@@ -133,6 +156,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         discount_amount: discountAmount || "0",
         notes: notes || null,
         terms: terms || null,
+        pdf_template: pdfTemplate,
+        accent_color: accentColor || null,
+        language,
         line_items: lines,
         converted_from_id: convertedFromId,
       };
@@ -404,6 +430,37 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="terms">Terms &amp; conditions</Label>
                 <Input id="terms" value={terms ?? ""} onChange={(e) => setTerms(e.target.value)} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="pdf_template">PDF template</Label>
+                  <Select id="pdf_template" value={pdfTemplate} onChange={(e) => setPdfTemplate(e.target.value as PdfTemplate)}>
+                    {PDF_TEMPLATES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="accent_color">Accent color</Label>
+                  <Input
+                    id="accent_color"
+                    type="color"
+                    value={accentColor || "#0f766e"}
+                    onChange={(e) => setAccentColor(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="language">Language</Label>
+                  <Select id="language" value={language} onChange={(e) => setLanguage(e.target.value as InvoiceLanguage)}>
+                    {INVOICE_LANGUAGES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:w-64">

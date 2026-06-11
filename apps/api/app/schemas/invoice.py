@@ -50,6 +50,7 @@ class InvoiceCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=2000)
     terms: str | None = Field(default=None, max_length=2000)
     pdf_template: PdfTemplate = PdfTemplate.MINIMAL
+    accent_color: str | None = Field(default=None, max_length=16)
     language: InvoiceLanguage = InvoiceLanguage.EN
     line_items: list[InvoiceLineItemInput] = Field(default_factory=list, min_length=1)
     client_uuid: uuid.UUID | None = None
@@ -66,6 +67,7 @@ class InvoiceUpdate(BaseModel):
     notes: str | None = Field(default=None, max_length=2000)
     terms: str | None = Field(default=None, max_length=2000)
     pdf_template: PdfTemplate | None = None
+    accent_color: str | None = Field(default=None, max_length=16)
     language: InvoiceLanguage | None = None
     line_items: list[InvoiceLineItemInput] | None = Field(default=None, min_length=1)
 
@@ -96,6 +98,7 @@ class InvoiceOut(BaseModel):
     notes: str | None
     terms: str | None
     pdf_template: PdfTemplate
+    accent_color: str | None
     language: InvoiceLanguage
     void_reason: str | None
     converted_from_id: uuid.UUID | None

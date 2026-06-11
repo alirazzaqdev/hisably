@@ -183,3 +183,48 @@ async def test_invoice_share_link_and_public_pdf(client, auth_headers):
 
     bad_resp = await client.get("/api/v1/public/invoices/not-a-real-token/pdf")
     assert bad_resp.status_code == 404
+
+
+async def test_invoice_template_customization(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+
+    for template, accent_color, language in [
+        ("minimal", None, "en"),
+        ("classic", "#1e3a5f", "ar"),
+        ("bold", "#b91c1c", "bilingual"),
+    ]:
+        create_resp = await client.post(
+            "/api/v1/invoices",
+            json={
+                "customer_id": customer_id,
+                "issue_date": "2026-06-01",
+                "pdf_template": template,
+                "accent_color": accent_color,
+                "language": language,
+                "line_items": [
+                    {"description": "Glass panel", "quantity": "1", "unit_price": "100.00", "vat_category": "standard"},
+                ],
+            },
+            headers=auth_headers,
+        )
+        assert create_resp.status_code == 201
+        invoice = create_resp.json()
+        assert invoice["pdf_template"] == template
+        assert invoice["accent_color"] == accent_color
+        assert invoice["language"] == language
+
+        pdf_resp = await client.get(f"/api/v1/invoices/{invoice['id']}/pdf", headers=auth_headers)
+        assert pdf_resp.status_code == 200
+        assert pdf_resp.headers["content-type"] == "application/pdf"
+        assert pdf_resp.content[:4] == b"%PDF"
+
+    patch_resp = await client.patch(
+        f"/api/v1/invoices/{invoice['id']}",
+        json={"pdf_template": "minimal", "accent_color": "#22c55e", "language": "en"},
+        headers=auth_headers,
+    )
+    assert patch_resp.status_code == 200
+    updated = patch_resp.json()
+    assert updated["pdf_template"] == "minimal"
+    assert updated["accent_color"] == "#22c55e"
+    assert updated["language"] == "en"

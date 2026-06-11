@@ -40,6 +40,7 @@ export default function SettingsPage() {
         address: tenant.address ?? "",
         invoice_prefix: tenant.invoice_prefix,
         default_vat_category: tenant.default_vat_category,
+        logo_url: tenant.logo_url ?? "",
       });
     }
   }, [tenant]);
@@ -110,6 +111,17 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="address">Business address</Label>
               <Input id="address" value={form.address ?? ""} onChange={(e) => update("address", e.target.value)} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="logo_url">Logo URL</Label>
+              <Input
+                id="logo_url"
+                type="url"
+                placeholder="https://example.com/logo.png"
+                value={form.logo_url ?? ""}
+                onChange={(e) => update("logo_url", e.target.value)}
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
