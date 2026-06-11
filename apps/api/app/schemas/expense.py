@@ -12,6 +12,7 @@ class ExpenseCreate(BaseModel):
     supplier_id: uuid.UUID | None = None
     expense_date: date
     notes: str | None = Field(default=None, max_length=1000)
+    attachment_id: uuid.UUID | None = None
     client_uuid: uuid.UUID | None = None
 
 
@@ -22,6 +23,7 @@ class ExpenseUpdate(BaseModel):
     supplier_id: uuid.UUID | None = None
     expense_date: date | None = None
     notes: str | None = Field(default=None, max_length=1000)
+    attachment_id: uuid.UUID | None = None
 
 
 class ExpenseOut(BaseModel):
@@ -34,3 +36,5 @@ class ExpenseOut(BaseModel):
     supplier_id: uuid.UUID | None
     expense_date: date
     notes: str | None
+    attachment_id: uuid.UUID | None
+    attachment_url: str | None = None

@@ -5,12 +5,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
 from app.db.session import get_db
+from app.models.expense import ExpenseEntry
 from app.models.tenant import Tenant
+from app.repositories import attachments as attachments_repo
 from app.repositories import expenses as expenses_repo
 from app.schemas.common import Page
 from app.schemas.expense import ExpenseCreate, ExpenseOut, ExpenseUpdate
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
+
+
+async def _to_out(db: AsyncSession, tenant_id: uuid.UUID, expense: ExpenseEntry) -> ExpenseOut:
+    out = ExpenseOut.model_validate(expense)
+    if expense.attachment_id is not None:
+        attachment = await attachments_repo.get_by_id(db, tenant_id, expense.attachment_id)
+        if attachment is not None:
+            out.attachment_url = attachment.file_url
+    return out
 
 
 @router.get("", response_model=Page[ExpenseOut])
@@ -22,7 +33,7 @@ async def list_expenses(
     db: AsyncSession = Depends(get_db),
 ) -> Page[ExpenseOut]:
     items, total = await expenses_repo.list_paginated(db, tenant.id, category=category, page=page, page_size=page_size)
-    return Page(items=[ExpenseOut.model_validate(e) for e in items], total=total, page=page, page_size=page_size)
+    return Page(items=[await _to_out(db, tenant.id, e) for e in items], total=total, page=page, page_size=page_size)
 
 
 @router.post("", response_model=ExpenseOut, status_code=status.HTTP_201_CREATED)
@@ -33,7 +44,7 @@ async def create_expense(
 ) -> ExpenseOut:
     expense = await expenses_repo.create(db, tenant.id, payload)
     await db.commit()
-    return ExpenseOut.model_validate(expense)
+    return await _to_out(db, tenant.id, expense)
 
 
 @router.get("/{expense_id}", response_model=ExpenseOut)
@@ -45,7 +56,7 @@ async def get_expense(
     expense = await expenses_repo.get_by_id(db, tenant.id, expense_id)
     if expense is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
-    return ExpenseOut.model_validate(expense)
+    return await _to_out(db, tenant.id, expense)
 
 
 @router.patch("/{expense_id}", response_model=ExpenseOut)
@@ -60,7 +71,7 @@ async def update_expense(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
     expense = await expenses_repo.update(db, expense, payload)
     await db.commit()
-    return ExpenseOut.model_validate(expense)
+    return await _to_out(db, tenant.id, expense)
 
 
 @router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -89,3 +89,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
+
+export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
+  const headers = new Headers();
+  const { accessToken } = useAuthStore.getState();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: "POST", body: formData, headers });
+
+  if (!res.ok) {
+    throw new ApiError(res.status, await parseError(res));
+  }
+
+  return res.json() as Promise<T>;
+}

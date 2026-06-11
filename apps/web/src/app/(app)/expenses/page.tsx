@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Paperclip, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { expensesApi } from "@/lib/api/expenses";
 
@@ -56,8 +56,12 @@ export default function ExpensesPage() {
               <tr key={expense.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                 <td className="px-4 py-3 text-muted-foreground">{expense.expense_date}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/expenses/${expense.id}/edit`} className="font-medium text-foreground hover:text-accent-700">
+                  <Link
+                    href={`/expenses/${expense.id}/edit`}
+                    className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-accent-700"
+                  >
                     {expense.category}
+                    {expense.attachment_id && <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />}
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{expense.notes ?? "—"}</td>

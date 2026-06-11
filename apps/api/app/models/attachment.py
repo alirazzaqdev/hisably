@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import String
+from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -11,5 +11,5 @@ class Attachment(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
 
     entity_type: Mapped[str] = mapped_column(String(32))
     entity_id: Mapped[uuid.UUID] = mapped_column(index=True)
-    file_url: Mapped[str] = mapped_column(String(500))
+    file_url: Mapped[str] = mapped_column(Text)
     file_type: Mapped[str] = mapped_column(String(100))

@@ -9,6 +9,7 @@ import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
+import { attachmentsApi } from "@/lib/api/attachments";
 import { expensesApi, type Expense, type ExpenseInput } from "@/lib/api/expenses";
 import { createOrQueue } from "@/lib/offline/sync-engine";
 
@@ -27,8 +28,31 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
     vat_paid: expense?.vat_paid ?? "0",
     expense_date: expense?.expense_date ?? todayIso(),
     notes: expense?.notes ?? "",
+    attachment_id: expense?.attachment_id ?? null,
   });
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(expense?.attachment_url ?? null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setFormError(null);
+    try {
+      const attachment = await attachmentsApi.upload(file, "expense");
+      update("attachment_id", attachment.id);
+      setAttachmentUrl(attachment.file_url);
+    } catch (error) {
+      if (error instanceof ApiError && typeof error.detail === "string") {
+        setFormError(error.detail);
+      } else {
+        setFormError("Failed to upload receipt. Please try again.");
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -125,6 +149,17 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">Notes</Label>
             <Input id="notes" value={form.notes ?? ""} onChange={(e) => update("notes", e.target.value)} />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="receipt">Receipt / bill</Label>
+            <Input id="receipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={handleFileChange} />
+            {uploading && <p className="text-body-sm text-muted-foreground">Uploading…</p>}
+            {attachmentUrl && !uploading && (
+              <a href={attachmentUrl} target="_blank" rel="noreferrer" className="text-body-sm text-accent-700 hover:underline">
+                View attached receipt
+              </a>
+            )}
           </div>
 
           <FormError>{formError}</FormError>

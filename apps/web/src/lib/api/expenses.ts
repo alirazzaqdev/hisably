@@ -9,6 +9,8 @@ export interface Expense {
   supplier_id: string | null;
   expense_date: string;
   notes: string | null;
+  attachment_id: string | null;
+  attachment_url: string | null;
 }
 
 export interface ExpenseInput {
@@ -18,6 +20,7 @@ export interface ExpenseInput {
   supplier_id?: string | null;
   expense_date: string;
   notes?: string | null;
+  attachment_id?: string | null;
 }
 
 export const expensesApi = {
