@@ -50,7 +50,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const [terms, setTerms] = useState(invoice?.terms ?? "");
   const [discountAmount, setDiscountAmount] = useState(invoice?.discount_amount ?? "0");
   const [lines, setLines] = useState<InvoiceLineItemInput[]>(
-    invoice?.line_items.length
+    invoice?.line_items?.length
       ? invoice.line_items.map((li) => ({
           item_id: li.item_id,
           description: li.description,
