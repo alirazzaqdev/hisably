@@ -10,6 +10,8 @@ export interface OnboardingBusinessRequest {
   invoice_starting_number: number;
 }
 
+export type VatCategory = "standard" | "zero_rated" | "exempt";
+
 export interface TenantOut {
   id: string;
   business_name: string;
@@ -17,8 +19,10 @@ export interface TenantOut {
   currency: string;
   vat_registered: boolean;
   trn: string | null;
+  address: string | null;
   logo_url: string | null;
   invoice_prefix: string;
+  default_vat_category: VatCategory;
 }
 
 export const onboardingApi = {

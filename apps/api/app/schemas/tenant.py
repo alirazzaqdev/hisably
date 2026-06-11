@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import Country
+from app.models.enums import Country, VatCategory
 
 
 class OnboardingBusinessRequest(BaseModel):
@@ -15,6 +15,16 @@ class OnboardingBusinessRequest(BaseModel):
     invoice_starting_number: int = Field(default=1, ge=1)
 
 
+class TenantUpdate(BaseModel):
+    business_name: str | None = Field(default=None, min_length=1, max_length=255)
+    trn: str | None = Field(default=None, max_length=32)
+    vat_registered: bool | None = None
+    address: str | None = Field(default=None, max_length=500)
+    logo_url: str | None = None
+    invoice_prefix: str | None = Field(default=None, max_length=16)
+    default_vat_category: VatCategory | None = None
+
+
 class TenantOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,5 +34,7 @@ class TenantOut(BaseModel):
     currency: str
     vat_registered: bool
     trn: str | None
+    address: str | None
     logo_url: str | None
     invoice_prefix: str
+    default_vat_category: VatCategory

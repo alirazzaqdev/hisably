@@ -1,15 +1,26 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
+from app.db.session import get_db
 from app.models.tenant import Tenant
-from app.schemas.tenant import TenantOut
+from app.repositories import tenants as tenants_repo
+from app.schemas.tenant import TenantOut, TenantUpdate
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
-
-# TODO (Phase 1, module: Settings/polish): PATCH /tenants/me, logo,
-# invoice-settings, tax-settings
 
 
 @router.get("/me", response_model=TenantOut)
 async def get_me(tenant: Tenant = Depends(get_current_tenant)) -> TenantOut:
+    return TenantOut.model_validate(tenant)
+
+
+@router.patch("/me", response_model=TenantOut)
+async def update_me(
+    payload: TenantUpdate,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> TenantOut:
+    tenant = await tenants_repo.update(db, tenant, payload)
+    await db.commit()
     return TenantOut.model_validate(tenant)

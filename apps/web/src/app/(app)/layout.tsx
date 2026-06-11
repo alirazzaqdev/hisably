@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { href: "/payments", label: "Payments", icon: CreditCard, available: true },
   { href: "/expenses", label: "Expenses", icon: Receipt, available: true },
   { href: "/reports", label: "Reports", icon: BarChart3, available: true },
-  { href: "/settings", label: "Settings", icon: Settings, available: false },
+  { href: "/settings", label: "Settings", icon: Settings, available: true },
 ] as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
