@@ -113,3 +113,43 @@ async def test_draft_only_invoices_can_be_deleted(client, auth_headers):
 
     delete_resp = await client.delete(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
     assert delete_resp.status_code == 204
+
+
+async def test_quotation_can_be_converted_to_tax_invoice(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+
+    quotation_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "type": "quotation",
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "line_items": [
+                {"description": "Glass partition", "quantity": "1", "unit_price": "500.00", "vat_category": "standard"},
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert quotation_resp.status_code == 201
+    quotation = quotation_resp.json()
+    assert quotation["type"] == "quotation"
+
+    invoice_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "type": "tax_invoice",
+            "customer_id": customer_id,
+            "converted_from_id": quotation["id"],
+            "issue_date": "2026-06-02",
+            "line_items": quotation["line_items"],
+        },
+        headers=auth_headers,
+    )
+    assert invoice_resp.status_code == 201
+    invoice = invoice_resp.json()
+    assert invoice["type"] == "tax_invoice"
+    assert invoice["converted_from_id"] == quotation["id"]
+    assert invoice["grand_total"] == quotation["grand_total"]
+
+    type_filter_resp = await client.get("/api/v1/invoices", params={"type": "quotation"}, headers=auth_headers)
+    assert type_filter_resp.json()["total"] == 1

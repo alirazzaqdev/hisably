@@ -90,6 +90,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const canDelete = invoice.status === "draft";
   const canCreditNote = invoice.type === "tax_invoice" && invoice.status !== "draft" && invoice.status !== "void";
   const canDebitNote = invoice.type === "purchase_bill" && invoice.status !== "draft" && invoice.status !== "void";
+  const canConvertToInvoice = (invoice.type === "quotation" || invoice.type === "proforma") && invoice.status !== "void";
 
   return (
     <div className="flex flex-col gap-6">
@@ -231,6 +232,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   {action.label}
                 </Button>
               ))}
+              {canConvertToInvoice && (
+                <Button asChild variant="secondary">
+                  <Link href={`/invoices/new?from=${invoice.id}&type=tax_invoice`}>Convert to invoice</Link>
+                </Button>
+              )}
               {canCreditNote && (
                 <Button asChild variant="secondary">
                   <Link href={`/invoices/new?from=${invoice.id}&type=credit_note`}>Create credit note</Link>
