@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
-import { itemsApi, type VatCategory } from "@/lib/api/items";
+import { itemsApi, type Item, type VatCategory } from "@/lib/api/items";
 import { priceListsApi } from "@/lib/api/price-lists";
 import { invoicesApi, type Invoice, type InvoiceInput, type InvoiceLineItemInput, type InvoiceType } from "@/lib/api/invoices";
 
@@ -91,6 +91,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       : [emptyLine()]
   );
   const [formError, setFormError] = useState<string | null>(null);
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
 
   const selectedCustomer = customers?.items.find((c) => c.id === customerId);
   const { data: priceListItems } = useQuery({
@@ -159,18 +161,54 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   }
 
+  function applyItemToLine(index: number, item: Item) {
+    setLines((prev) =>
+      prev.map((line, i) =>
+        i === index
+          ? {
+              ...line,
+              item_id: item.id,
+              description: item.name,
+              unit_price: priceByItemId.get(item.id) ?? item.sale_price,
+              vat_category: item.vat_category,
+            }
+          : line
+      )
+    );
+  }
+
   function applyItem(index: number, itemId: string) {
     const item = items?.items.find((i) => i.id === itemId);
     if (!item) {
       updateLine(index, { item_id: null });
       return;
     }
-    updateLine(index, {
-      item_id: item.id,
-      description: item.name,
-      unit_price: priceByItemId.get(item.id) ?? item.sale_price,
-      vat_category: item.vat_category,
-    });
+    applyItemToLine(index, item);
+  }
+
+  async function handleBarcodeScan(barcode: string) {
+    if (!barcode.trim()) return;
+    try {
+      const item = await itemsApi.getByBarcode(barcode.trim());
+      setLines((prev) => {
+        const emptyIndex = prev.findIndex((line) => !line.item_id && !line.description);
+        const next =
+          emptyIndex !== -1 ? [...prev] : [...prev, emptyLine()];
+        const targetIndex = emptyIndex !== -1 ? emptyIndex : next.length - 1;
+        next[targetIndex] = {
+          ...next[targetIndex],
+          item_id: item.id,
+          description: item.name,
+          unit_price: priceByItemId.get(item.id) ?? item.sale_price,
+          vat_category: item.vat_category,
+        };
+        return next;
+      });
+      setBarcodeInput("");
+      setBarcodeError(null);
+    } catch {
+      setBarcodeError(`No item found for barcode "${barcode}"`);
+    }
   }
 
   function addLine() {
@@ -245,6 +283,26 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
               <Label htmlFor="due_date">Due date</Label>
               <Input id="due_date" type="date" value={dueDate ?? ""} onChange={(e) => setDueDate(e.target.value)} />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="barcode_scan">Scan barcode</Label>
+            <Input
+              id="barcode_scan"
+              placeholder="Scan or type a barcode and press Enter"
+              value={barcodeInput}
+              onChange={(e) => {
+                setBarcodeInput(e.target.value);
+                setBarcodeError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleBarcodeScan(barcodeInput);
+                }
+              }}
+            />
+            <FormError>{barcodeError}</FormError>
           </div>
 
           <div className="flex flex-col gap-2">

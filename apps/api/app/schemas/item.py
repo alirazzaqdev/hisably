@@ -10,6 +10,7 @@ class ItemCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     name_ar: str | None = Field(default=None, max_length=255)
     sku: str | None = Field(default=None, max_length=64)
+    barcode: str | None = Field(default=None, max_length=64)
     unit: ItemUnit = ItemUnit.PCS
     is_area_based: bool = False
     sale_price: Decimal = Decimal("0")
@@ -26,6 +27,7 @@ class ItemUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     name_ar: str | None = Field(default=None, max_length=255)
     sku: str | None = Field(default=None, max_length=64)
+    barcode: str | None = Field(default=None, max_length=64)
     unit: ItemUnit | None = None
     is_area_based: bool | None = None
     sale_price: Decimal | None = None
@@ -44,6 +46,7 @@ class ItemOut(BaseModel):
     name: str
     name_ar: str | None
     sku: str | None
+    barcode: str | None
     unit: ItemUnit
     is_area_based: bool
     sale_price: Decimal

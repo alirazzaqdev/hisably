@@ -14,6 +14,7 @@ class Item(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255))
     name_ar: Mapped[str | None] = mapped_column(String(255), nullable=True)
     sku: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    barcode: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     unit: Mapped[ItemUnit] = mapped_column(Enum(ItemUnit, native_enum=False), default=ItemUnit.PCS)
     is_area_based: Mapped[bool] = mapped_column(Boolean, default=False)
 

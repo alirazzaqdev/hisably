@@ -19,6 +19,11 @@ async def get_by_id(db: AsyncSession, tenant_id: uuid.UUID, item_id: uuid.UUID) 
     return result.scalar_one_or_none()
 
 
+async def get_by_barcode(db: AsyncSession, tenant_id: uuid.UUID, barcode: str) -> Item | None:
+    result = await db.execute(select(Item).where(Item.tenant_id == tenant_id, Item.barcode == barcode))
+    return result.scalar_one_or_none()
+
+
 async def list_paginated(
     db: AsyncSession,
     tenant_id: uuid.UUID,

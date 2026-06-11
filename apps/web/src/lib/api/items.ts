@@ -9,6 +9,7 @@ export interface Item {
   name: string;
   name_ar: string | null;
   sku: string | null;
+  barcode: string | null;
   unit: ItemUnit;
   is_area_based: boolean;
   sale_price: string;
@@ -24,6 +25,7 @@ export interface ItemInput {
   name: string;
   name_ar?: string | null;
   sku?: string | null;
+  barcode?: string | null;
   unit?: ItemUnit;
   is_area_based?: boolean;
   sale_price?: string;
@@ -46,6 +48,7 @@ export const itemsApi = {
     return apiRequest<Page<Item>>(`/items${qs ? `?${qs}` : ""}`);
   },
   get: (id: string) => apiRequest<Item>(`/items/${id}`),
+  getByBarcode: (barcode: string) => apiRequest<Item>(`/items/by-barcode/${encodeURIComponent(barcode)}`),
   lowStock: () => apiRequest<Item[]>("/items/low-stock"),
   create: (payload: ItemInput) => apiRequest<Item>("/items", { method: "POST", body: JSON.stringify(payload) }),
   update: (id: string, payload: Partial<ItemInput>) =>

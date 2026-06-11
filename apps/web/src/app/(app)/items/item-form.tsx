@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,16 @@ import { itemCategoriesApi } from "@/lib/api/item-categories";
 import { itemsApi, type Item, type ItemInput } from "@/lib/api/items";
 import { itemPricesApi, priceListsApi } from "@/lib/api/price-lists";
 import { createOrQueue } from "@/lib/offline/sync-engine";
+
+function generateEan13(): string {
+  let digits = "";
+  for (let i = 0; i < 12; i++) digits += Math.floor(Math.random() * 10);
+  const checksum = digits
+    .split("")
+    .reduce((sum, digit, index) => sum + Number(digit) * (index % 2 === 0 ? 1 : 3), 0);
+  const checkDigit = (10 - (checksum % 10)) % 10;
+  return digits + checkDigit;
+}
 
 const UNITS = ["pcs", "sqm", "sqft", "kg", "m", "box", "ltr"] as const;
 const VAT_CATEGORIES = [
@@ -30,6 +40,7 @@ export function ItemForm({ item }: { item?: Item }) {
   const [form, setForm] = useState<ItemInput>({
     name: item?.name ?? "",
     sku: item?.sku ?? "",
+    barcode: item?.barcode ?? "",
     unit: item?.unit ?? "pcs",
     sale_price: item?.sale_price ?? "0",
     purchase_price: item?.purchase_price ?? "0",
@@ -61,6 +72,20 @@ export function ItemForm({ item }: { item?: Item }) {
     if (!existingPrices) return;
     setPriceListPrices(Object.fromEntries(existingPrices.map((p) => [p.price_list_id, p.price])));
   }, [existingPrices]);
+
+  const barcodeSvgRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    if (!form.barcode || !barcodeSvgRef.current) return;
+    import("jsbarcode").then(({ default: JsBarcode }) => {
+      if (!barcodeSvgRef.current) return;
+      try {
+        JsBarcode(barcodeSvgRef.current, form.barcode!, { format: "EAN13", height: 50, displayValue: true });
+      } catch {
+        JsBarcode(barcodeSvgRef.current, form.barcode!, { format: "CODE128", height: 50, displayValue: true });
+      }
+    });
+  }, [form.barcode]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -131,6 +156,29 @@ export function ItemForm({ item }: { item?: Item }) {
               <Label htmlFor="sku">SKU</Label>
               <Input id="sku" value={form.sku ?? ""} onChange={(e) => update("sku", e.target.value)} />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="barcode">Barcode</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="barcode"
+                  value={form.barcode ?? ""}
+                  onChange={(e) => update("barcode", e.target.value)}
+                />
+                <Button type="button" variant="secondary" onClick={() => update("barcode", generateEan13())}>
+                  Generate
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {form.barcode && (
+            <div className="flex flex-col items-start gap-1.5">
+              <Label>Barcode preview</Label>
+              <svg ref={barcodeSvgRef} />
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="unit">Unit</Label>
               <Select id="unit" value={form.unit} onChange={(e) => update("unit", e.target.value as ItemInput["unit"])}>

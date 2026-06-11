@@ -50,6 +50,18 @@ async def create_item(
     return ItemOut.model_validate(item)
 
 
+@router.get("/by-barcode/{barcode}", response_model=ItemOut)
+async def get_item_by_barcode(
+    barcode: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> ItemOut:
+    item = await items_repo.get_by_barcode(db, tenant.id, barcode)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    return ItemOut.model_validate(item)
+
+
 @router.get("/{item_id}", response_model=ItemOut)
 async def get_item(
     item_id: uuid.UUID,

@@ -40,6 +40,24 @@ async def test_items_require_auth(client):
     assert resp.status_code == 401
 
 
+async def test_item_lookup_by_barcode(client, auth_headers):
+    create_resp = await client.post(
+        "/api/v1/items",
+        json={"name": "Aluminium profile", "barcode": "1234567890123"},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    item = create_resp.json()
+    assert item["barcode"] == "1234567890123"
+
+    found_resp = await client.get("/api/v1/items/by-barcode/1234567890123", headers=auth_headers)
+    assert found_resp.status_code == 200
+    assert found_resp.json()["id"] == item["id"]
+
+    missing_resp = await client.get("/api/v1/items/by-barcode/nope", headers=auth_headers)
+    assert missing_resp.status_code == 404
+
+
 async def test_low_stock_items(client, auth_headers):
     await client.post(
         "/api/v1/items",
