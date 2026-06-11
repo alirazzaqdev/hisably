@@ -6,24 +6,24 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { customersApi } from "@/lib/api/customers";
+import { suppliersApi } from "@/lib/api/suppliers";
 
-export default function CustomersPage() {
+export default function SuppliersPage() {
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["customers", search],
-    queryFn: () => customersApi.list({ search: search || undefined, pageSize: 50 }),
+    queryKey: ["suppliers", search],
+    queryFn: () => suppliersApi.list({ search: search || undefined, pageSize: 50 }),
   });
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-h1 text-foreground">Customers</h1>
+        <h1 className="text-h1 text-foreground">Suppliers</h1>
         <Button asChild>
-          <Link href="/customers/new">
+          <Link href="/suppliers/new">
             <Plus className="h-4 w-4" />
-            Add customer
+            Add supplier
           </Link>
         </Button>
       </div>
@@ -60,22 +60,22 @@ export default function CustomersPage() {
             {!isLoading && data?.items.length === 0 && (
               <tr>
                 <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
-                  No customers yet.
+                  No suppliers yet.
                 </td>
               </tr>
             )}
-            {data?.items.map((customer) => (
-              <tr key={customer.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+            {data?.items.map((supplier) => (
+              <tr key={supplier.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                 <td className="px-4 py-3">
-                  <Link href={`/customers/${customer.id}/edit`} className="font-medium text-foreground hover:text-accent-700">
-                    {customer.name}
+                  <Link href={`/suppliers/${supplier.id}/edit`} className="font-medium text-foreground hover:text-accent-700">
+                    {supplier.name}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{customer.phone ?? "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{customer.email ?? "—"}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{customer.opening_balance}</td>
+                <td className="px-4 py-3 text-muted-foreground">{supplier.phone ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{supplier.email ?? "—"}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{supplier.opening_balance}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link href={`/customers/${customer.id}/statement`} className="text-accent-700 hover:underline">
+                  <Link href={`/suppliers/${supplier.id}/statement`} className="text-accent-700 hover:underline">
                     View
                   </Link>
                 </td>

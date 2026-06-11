@@ -7,8 +7,10 @@ from app.api.deps import get_current_tenant
 from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.repositories import customers as customers_repo
+from app.repositories import ledger as ledger_repo
 from app.schemas.common import Page
 from app.schemas.customer import CustomerCreate, CustomerOut, CustomerUpdate
+from app.schemas.ledger import PartyStatement
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -48,6 +50,18 @@ async def get_customer(
     if customer is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
     return CustomerOut.model_validate(customer)
+
+
+@router.get("/{customer_id}/statement", response_model=PartyStatement)
+async def get_customer_statement(
+    customer_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> PartyStatement:
+    customer = await customers_repo.get_by_id(db, tenant.id, customer_id)
+    if customer is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+    return await ledger_repo.customer_statement(db, tenant.id, customer)
 
 
 @router.patch("/{customer_id}", response_model=CustomerOut)

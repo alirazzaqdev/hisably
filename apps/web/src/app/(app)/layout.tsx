@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
+  Truck,
   Package,
   FileText,
   CreditCard,
@@ -24,6 +25,7 @@ import { useAuthStore } from "@/stores/auth-store";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, available: true },
   { href: "/customers", label: "Customers", icon: Users, available: true },
+  { href: "/suppliers", label: "Suppliers", icon: Truck, available: true },
   { href: "/items", label: "Items", icon: Package, available: true },
   { href: "/invoices", label: "Invoices", icon: FileText, available: true },
   { href: "/payments", label: "Payments", icon: CreditCard, available: true },
