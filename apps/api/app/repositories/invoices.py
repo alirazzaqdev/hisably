@@ -121,6 +121,7 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         issue_date=payload.issue_date,
         due_date=payload.due_date,
         currency=payload.currency,
+        exchange_rate=payload.exchange_rate,
         discount_amount=payload.discount_amount,
         notes=payload.notes,
         terms=payload.terms,

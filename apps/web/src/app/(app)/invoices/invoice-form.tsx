@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
+import { tenantsApi } from "@/lib/api/tenants";
 import { itemsApi, type Item, type VatCategory } from "@/lib/api/items";
 import { priceListsApi } from "@/lib/api/price-lists";
 import {
@@ -54,6 +55,8 @@ const INVOICE_LANGUAGES: { value: InvoiceLanguage; label: string }[] = [
   { value: "bilingual", label: "Bilingual (EN/AR)" },
 ];
 
+const CURRENCIES = ["AED", "SAR", "PKR", "USD", "EUR", "GBP"];
+
 function emptyLine(): InvoiceLineItemInput {
   return { description: "", quantity: "1", unit_price: "0", vat_category: "standard" };
 }
@@ -88,6 +91,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     queryFn: () => invoicesApi.get(fromInvoiceId!),
     enabled: Boolean(fromInvoiceId) && !isEditing,
   });
+  const { data: tenant } = useQuery({ queryKey: ["tenant", "me"], queryFn: tenantsApi.me });
 
   const [type, setType] = useState<InvoiceType>(invoice?.type ?? typeParam ?? "tax_invoice");
   const [customerId, setCustomerId] = useState(invoice?.customer_id ?? "");
@@ -95,6 +99,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const [convertedFromId, setConvertedFromId] = useState<string | null>(invoice?.converted_from_id ?? null);
   const [issueDate, setIssueDate] = useState(invoice?.issue_date ?? todayIso());
   const [dueDate, setDueDate] = useState(invoice?.due_date ?? "");
+  const [currency, setCurrency] = useState(invoice?.currency ?? "");
+  const [exchangeRate, setExchangeRate] = useState(invoice?.exchange_rate ?? "1");
   const [notes, setNotes] = useState(invoice?.notes ?? "");
   const [terms, setTerms] = useState(invoice?.terms ?? "");
   const [discountAmount, setDiscountAmount] = useState(invoice?.discount_amount ?? "0");
@@ -126,6 +132,12 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const priceByItemId = new Map(priceListItems?.map((p) => [p.item_id, p.price]));
 
   useEffect(() => {
+    if (invoice || !tenant?.currency) return;
+    setCurrency((prev) => prev || tenant.currency);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.currency]);
+
+  useEffect(() => {
     if (!sourceInvoice || isEditing) return;
     setCustomerId(sourceInvoice.customer_id ?? "");
     setSupplierId(sourceInvoice.supplier_id ?? "");
@@ -153,6 +165,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         supplier_id: isSupplierDoc ? supplierId || null : null,
         issue_date: issueDate,
         due_date: dueDate || null,
+        currency: currency || undefined,
+        exchange_rate: exchangeRate || "1",
         discount_amount: discountAmount || "0",
         notes: notes || null,
         terms: terms || null,
@@ -309,6 +323,29 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
               <Label htmlFor="due_date">Due date</Label>
               <Input id="due_date" type="date" value={dueDate ?? ""} onChange={(e) => setDueDate(e.target.value)} />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="currency">Currency</Label>
+              <Select id="currency" value={currency || "AED"} onChange={(e) => setCurrency(e.target.value)}>
+                {CURRENCIES.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {currency && currency !== tenant?.currency && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="exchange_rate">Exchange rate (to {tenant?.currency ?? "base currency"})</Label>
+                <Input
+                  id="exchange_rate"
+                  type="number"
+                  step="0.000001"
+                  min="0"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

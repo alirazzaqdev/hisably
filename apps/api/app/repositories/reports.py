@@ -22,6 +22,10 @@ INVOICE_DAY_BOOK_DIRECTIONS = {
 }
 
 
+def _q2(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"))
+
+
 async def count_customers(db: AsyncSession, tenant_id: uuid.UUID) -> int:
     result = await db.execute(select(func.count()).select_from(Customer).where(Customer.tenant_id == tenant_id))
     return result.scalar_one()
@@ -39,11 +43,11 @@ async def count_invoices(db: AsyncSession, tenant_id: uuid.UUID) -> int:
 
 async def revenue_paid(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
     result = await db.execute(
-        select(func.coalesce(func.sum(Invoice.grand_total), 0)).where(
+        select(func.coalesce(func.sum(Invoice.grand_total * Invoice.exchange_rate), 0)).where(
             Invoice.tenant_id == tenant_id, Invoice.status == InvoiceStatus.PAID
         )
     )
-    return result.scalar_one()
+    return _q2(result.scalar_one())
 
 
 async def outstanding_receivables(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
@@ -56,8 +60,8 @@ async def outstanding_receivables(db: AsyncSession, tenant_id: uuid.UUID) -> Dec
     total = Decimal("0")
     for invoice in invoices:
         paid = await get_paid_amount(db, invoice.id)
-        total += invoice.grand_total - paid
-    return total
+        total += (invoice.grand_total - paid) * invoice.exchange_rate
+    return _q2(total)
 
 
 async def expenses_this_month(db: AsyncSession, tenant_id: uuid.UUID, today: date) -> Decimal:
@@ -92,51 +96,54 @@ async def sales_trend(db: AsyncSession, tenant_id: uuid.UUID, months: int = 6) -
     for invoice in invoices:
         period = invoice.issue_date.strftime("%Y-%m")
         bucket = totals.setdefault(period, [Decimal("0"), Decimal("0")])
+        base_total = invoice.grand_total * invoice.exchange_rate
         if invoice.status != InvoiceStatus.VOID:
-            bucket[0] += invoice.grand_total
+            bucket[0] += base_total
         if invoice.status == InvoiceStatus.PAID:
-            bucket[1] += invoice.grand_total
+            bucket[1] += base_total
 
     periods = sorted(totals.keys(), reverse=True)[:months]
-    return [(p, totals[p][0], totals[p][1]) for p in reversed(periods)]
+    return [(p, _q2(totals[p][0]), _q2(totals[p][1])) for p in reversed(periods)]
 
 
 async def top_customers(db: AsyncSession, tenant_id: uuid.UUID, limit: int = 5) -> list[tuple[uuid.UUID, str, Decimal, Decimal]]:
+    base_total = Invoice.grand_total * Invoice.exchange_rate
     query = (
         select(
             Customer.id,
             Customer.name,
-            func.coalesce(func.sum(Invoice.grand_total), 0).label("total_invoiced"),
-            func.coalesce(func.sum(Invoice.grand_total).filter(Invoice.status == InvoiceStatus.PAID), 0).label(
+            func.coalesce(func.sum(base_total), 0).label("total_invoiced"),
+            func.coalesce(func.sum(base_total).filter(Invoice.status == InvoiceStatus.PAID), 0).label(
                 "total_paid"
             ),
         )
         .join(Invoice, Invoice.customer_id == Customer.id)
         .where(Customer.tenant_id == tenant_id, Invoice.status != InvoiceStatus.VOID)
         .group_by(Customer.id, Customer.name)
-        .order_by(func.coalesce(func.sum(Invoice.grand_total), 0).desc())
+        .order_by(func.coalesce(func.sum(base_total), 0).desc())
         .limit(limit)
     )
     rows = (await db.execute(query)).all()
-    return [(row.id, row.name, row.total_invoiced, row.total_paid) for row in rows]
+    return [(row.id, row.name, _q2(row.total_invoiced), _q2(row.total_paid)) for row in rows]
 
 
 async def top_items(db: AsyncSession, tenant_id: uuid.UUID, limit: int = 5) -> list[tuple[uuid.UUID | None, str, Decimal, Decimal]]:
+    base_revenue = InvoiceLineItem.line_total * Invoice.exchange_rate
     query = (
         select(
             InvoiceLineItem.item_id,
             func.max(InvoiceLineItem.description).label("description"),
             func.coalesce(func.sum(InvoiceLineItem.quantity), 0).label("quantity"),
-            func.coalesce(func.sum(InvoiceLineItem.line_total), 0).label("revenue"),
+            func.coalesce(func.sum(base_revenue), 0).label("revenue"),
         )
         .join(Invoice, Invoice.id == InvoiceLineItem.invoice_id)
         .where(Invoice.tenant_id == tenant_id, Invoice.status != InvoiceStatus.VOID)
         .group_by(InvoiceLineItem.item_id, InvoiceLineItem.description)
-        .order_by(func.coalesce(func.sum(InvoiceLineItem.line_total), 0).desc())
+        .order_by(func.coalesce(func.sum(base_revenue), 0).desc())
         .limit(limit)
     )
     rows = (await db.execute(query)).all()
-    return [(row.item_id, row.description, row.quantity, row.revenue) for row in rows]
+    return [(row.item_id, row.description, row.quantity, _q2(row.revenue)) for row in rows]
 
 
 async def receivables_aging(db: AsyncSession, tenant_id: uuid.UUID, today: date) -> list[tuple[str, Decimal, int]]:
@@ -156,7 +163,7 @@ async def receivables_aging(db: AsyncSession, tenant_id: uuid.UUID, today: date)
     }
 
     for invoice in invoices:
-        balance = invoice.grand_total - await get_paid_amount(db, invoice.id)
+        balance = (invoice.grand_total - await get_paid_amount(db, invoice.id)) * invoice.exchange_rate
         if balance <= 0:
             continue
         if invoice.due_date is None or invoice.due_date >= today:
@@ -174,13 +181,13 @@ async def receivables_aging(db: AsyncSession, tenant_id: uuid.UUID, today: date)
         buckets[label][0] += balance
         buckets[label][1] += 1
 
-    return [(label, total, count) for label, (total, count) in buckets.items()]
+    return [(label, _q2(total), count) for label, (total, count) in buckets.items()]
 
 
 async def vat_summary(
     db: AsyncSession, tenant_id: uuid.UUID, *, date_from: date | None, date_to: date | None
 ) -> tuple[Decimal, Decimal]:
-    invoice_query = select(func.coalesce(func.sum(Invoice.vat_total), 0)).where(
+    invoice_query = select(func.coalesce(func.sum(Invoice.vat_total * Invoice.exchange_rate), 0)).where(
         Invoice.tenant_id == tenant_id, Invoice.status != InvoiceStatus.DRAFT, Invoice.status != InvoiceStatus.VOID
     )
     expense_query = select(func.coalesce(func.sum(ExpenseEntry.vat_paid), 0)).where(
@@ -196,7 +203,7 @@ async def vat_summary(
 
     output_vat = (await db.execute(invoice_query)).scalar_one()
     input_vat = (await db.execute(expense_query)).scalar_one()
-    return output_vat, input_vat
+    return _q2(output_vat), input_vat
 
 
 async def day_book(
@@ -225,7 +232,7 @@ async def day_book(
                 type=invoice.type.value,
                 reference=invoice.invoice_number or invoice.draft_number,
                 party_name=customer_name or supplier_name,
-                amount=invoice.grand_total,
+                amount=_q2(invoice.grand_total * invoice.exchange_rate),
                 direction=INVOICE_DAY_BOOK_DIRECTIONS[invoice.type],
             )
         )
@@ -292,8 +299,8 @@ async def outstanding_payables(db: AsyncSession, tenant_id: uuid.UUID) -> Decima
     total = Decimal("0")
     for invoice in invoices:
         paid = await get_paid_amount(db, invoice.id)
-        total += invoice.grand_total - paid
-    return total
+        total += (invoice.grand_total - paid) * invoice.exchange_rate
+    return _q2(total)
 
 
 async def cash_and_bank_balance(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
@@ -323,25 +330,27 @@ async def profit_loss(
             query = query.where(Invoice.issue_date <= date_to)
         return query
 
+    base_subtotal = Invoice.subtotal * Invoice.exchange_rate
     revenue_query = apply_date_filter(
-        select(func.coalesce(func.sum(Invoice.subtotal), 0)).where(
+        select(func.coalesce(func.sum(base_subtotal), 0)).where(
             Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.TAX_INVOICE, Invoice.status != InvoiceStatus.DRAFT, Invoice.status != InvoiceStatus.VOID
         )
     )
     returns_query = apply_date_filter(
-        select(func.coalesce(func.sum(Invoice.subtotal), 0)).where(
+        select(func.coalesce(func.sum(base_subtotal), 0)).where(
             Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.CREDIT_NOTE, Invoice.status != InvoiceStatus.DRAFT, Invoice.status != InvoiceStatus.VOID
         )
     )
 
-    sales_revenue = (await db.execute(revenue_query)).scalar_one()
-    sales_returns = (await db.execute(returns_query)).scalar_one()
+    sales_revenue = _q2((await db.execute(revenue_query)).scalar_one())
+    sales_returns = _q2((await db.execute(returns_query)).scalar_one())
 
     cogs_query = (
         select(
             InvoiceLineItem.quantity,
             Item.purchase_price,
             Invoice.type,
+            Invoice.exchange_rate,
         )
         .join(Invoice, Invoice.id == InvoiceLineItem.invoice_id)
         .outerjoin(Item, Item.id == InvoiceLineItem.item_id)
@@ -355,10 +364,10 @@ async def profit_loss(
     cogs_query = apply_date_filter(cogs_query)
 
     cost_of_goods_sold = Decimal("0")
-    for quantity, purchase_price, invoice_type in (await db.execute(cogs_query)).all():
+    for quantity, purchase_price, invoice_type, exchange_rate in (await db.execute(cogs_query)).all():
         if purchase_price is None:
             continue
-        line_cost = quantity * purchase_price
+        line_cost = quantity * purchase_price * exchange_rate
         if invoice_type == InvoiceType.CREDIT_NOTE:
             cost_of_goods_sold -= line_cost
         else:
@@ -379,7 +388,7 @@ async def profit_loss(
     ]
     total_expenses = sum((e.amount for e in expenses_by_category), Decimal("0"))
 
-    return sales_revenue, sales_returns, cost_of_goods_sold, expenses_by_category, total_expenses
+    return sales_revenue, sales_returns, _q2(cost_of_goods_sold), expenses_by_category, total_expenses
 
 
 async def stock_summary(db: AsyncSession, tenant_id: uuid.UUID) -> tuple[list[StockSummaryItem], Decimal]:

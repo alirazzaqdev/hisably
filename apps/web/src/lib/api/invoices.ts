@@ -51,6 +51,7 @@ export interface Invoice {
   issue_date: string;
   due_date: string | null;
   currency: string;
+  exchange_rate: string;
   discount_amount: string;
   subtotal: string;
   discount_total: string;
@@ -74,6 +75,7 @@ export interface InvoiceInput {
   issue_date: string;
   due_date?: string | null;
   currency?: string;
+  exchange_rate?: string;
   discount_amount?: string;
   notes?: string | null;
   terms?: string | null;

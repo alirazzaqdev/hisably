@@ -46,6 +46,7 @@ class InvoiceCreate(BaseModel):
     issue_date: date
     due_date: date | None = None
     currency: str = Field(default="AED", min_length=3, max_length=3)
+    exchange_rate: Decimal = Field(default=Decimal("1"), gt=0)
     discount_amount: Decimal = Decimal("0")
     notes: str | None = Field(default=None, max_length=2000)
     terms: str | None = Field(default=None, max_length=2000)
@@ -63,6 +64,7 @@ class InvoiceUpdate(BaseModel):
     issue_date: date | None = None
     due_date: date | None = None
     currency: str | None = Field(default=None, min_length=3, max_length=3)
+    exchange_rate: Decimal | None = Field(default=None, gt=0)
     discount_amount: Decimal | None = None
     notes: str | None = Field(default=None, max_length=2000)
     terms: str | None = Field(default=None, max_length=2000)
@@ -90,6 +92,7 @@ class InvoiceOut(BaseModel):
     issue_date: date
     due_date: date | None
     currency: str
+    exchange_rate: Decimal
     discount_amount: Decimal = Decimal("0")
     subtotal: Decimal
     discount_total: Decimal

@@ -53,7 +53,7 @@ async def test_dashboard_kpis_and_reports(client, auth_headers):
     assert kpis["total_customers"] == 1
     assert kpis["total_invoices"] == 1
     assert kpis["revenue_paid"] == "105.00"
-    assert kpis["outstanding_receivables"] == "0"
+    assert kpis["outstanding_receivables"] == "0.00"
 
     trend_resp = await client.get("/api/v1/dashboard/sales-trend", headers=auth_headers)
     assert trend_resp.status_code == 200
@@ -252,3 +252,39 @@ async def test_stock_summary(client, auth_headers):
     assert item["current_stock"] == "20.000"
     assert item["stock_value"] == "2000.00000"
     assert data["total_stock_value"] == "2000.00000"
+
+
+async def test_multi_currency_invoice_converted_to_base_currency(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers, name="Foreign Buyer")
+
+    create_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "due_date": "2026-06-15",
+            "currency": "USD",
+            "exchange_rate": "3.67",
+            "line_items": [
+                {"description": "Export item", "quantity": "1", "unit_price": "100.00", "vat_category": "zero_rated"},
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    invoice = create_resp.json()
+    assert invoice["currency"] == "USD"
+    assert invoice["exchange_rate"] == "3.67"
+    assert invoice["grand_total"] == "100.00"
+
+    await client.patch(f"/api/v1/invoices/{invoice['id']}/status", json={"status": "sent"}, headers=auth_headers)
+
+    kpis_resp = await client.get("/api/v1/dashboard/kpis", headers=auth_headers)
+    assert kpis_resp.status_code == 200
+    kpis = kpis_resp.json()
+    assert Decimal(kpis["outstanding_receivables"]) == Decimal("367.00")
+
+    statement_resp = await client.get(f"/api/v1/customers/{customer_id}/statement", headers=auth_headers)
+    assert statement_resp.status_code == 200
+    statement = statement_resp.json()
+    assert Decimal(statement["closing_balance"]) == Decimal("367.00")
