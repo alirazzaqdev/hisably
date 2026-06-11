@@ -76,3 +76,29 @@ class StockSummaryItem(BaseModel):
 class StockSummaryResponse(BaseModel):
     items: list[StockSummaryItem]
     total_stock_value: Decimal
+
+
+class ExpenseCategoryTotal(BaseModel):
+    category: str
+    amount: Decimal
+
+
+class ProfitLossResponse(BaseModel):
+    sales_revenue: Decimal
+    sales_returns: Decimal
+    net_revenue: Decimal
+    cost_of_goods_sold: Decimal
+    gross_profit: Decimal
+    expenses_by_category: list[ExpenseCategoryTotal]
+    total_expenses: Decimal
+    net_profit: Decimal
+
+
+class BalanceSheetResponse(BaseModel):
+    cash_and_bank: Decimal
+    accounts_receivable: Decimal
+    inventory_value: Decimal
+    total_assets: Decimal
+    accounts_payable: Decimal
+    total_liabilities: Decimal
+    equity: Decimal

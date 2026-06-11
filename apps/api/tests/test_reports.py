@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+
 async def _create_customer(client, auth_headers, name="Acme Trading") -> str:
     resp = await client.post("/api/v1/customers", json={"name": name}, headers=auth_headers)
     return resp.json()["id"]
@@ -125,6 +128,93 @@ async def test_day_book(client, auth_headers):
         "/api/v1/reports/day-book", params={"date_from": "2026-06-11"}, headers=auth_headers
     )
     assert other_day_resp.json()["entries"] == []
+
+
+async def test_profit_loss_and_balance_sheet(client, auth_headers):
+    item_resp = await client.post(
+        "/api/v1/items",
+        json={
+            "name": "Glass Sheet",
+            "sku": "GLS-100",
+            "unit": "pcs",
+            "sale_price": "150.00",
+            "purchase_price": "100.00",
+            "track_inventory": True,
+            "current_stock": "10",
+            "low_stock_threshold": "2",
+        },
+        headers=auth_headers,
+    )
+    item_id = item_resp.json()["id"]
+
+    customer_id = await _create_customer(client, auth_headers)
+
+    invoice_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "due_date": "2026-06-15",
+            "line_items": [
+                {
+                    "item_id": item_id,
+                    "description": "Glass Sheet",
+                    "quantity": "2",
+                    "unit_price": "150.00",
+                    "vat_category": "standard",
+                },
+            ],
+        },
+        headers=auth_headers,
+    )
+    invoice = invoice_resp.json()
+    await client.patch(
+        f"/api/v1/invoices/{invoice['id']}/status", json={"status": "sent"}, headers=auth_headers
+    )
+
+    await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "amount": "150.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "allocations": [{"invoice_id": invoice["id"], "amount": "150.00"}],
+        },
+        headers=auth_headers,
+    )
+
+    await client.post(
+        "/api/v1/expenses",
+        json={"category": "Rent", "amount": "50.00", "vat_paid": "0", "expense_date": "2026-06-02"},
+        headers=auth_headers,
+    )
+
+    pl_resp = await client.get(
+        "/api/v1/reports/profit-loss",
+        params={"date_from": "2026-06-01", "date_to": "2026-06-30"},
+        headers=auth_headers,
+    )
+    assert pl_resp.status_code == 200
+    pl = pl_resp.json()
+    assert Decimal(pl["sales_revenue"]) == Decimal("300.00")
+    assert Decimal(pl["sales_returns"]) == Decimal("0")
+    assert Decimal(pl["net_revenue"]) == Decimal("300.00")
+    assert Decimal(pl["cost_of_goods_sold"]) == Decimal("200.00")
+    assert Decimal(pl["gross_profit"]) == Decimal("100.00")
+    assert any(
+        e["category"] == "Rent" and Decimal(e["amount"]) == Decimal("50.00") for e in pl["expenses_by_category"]
+    )
+    assert Decimal(pl["total_expenses"]) == Decimal("50.00")
+    assert Decimal(pl["net_profit"]) == Decimal("50.00")
+
+    bs_resp = await client.get("/api/v1/reports/balance-sheet", headers=auth_headers)
+    assert bs_resp.status_code == 200
+    bs = bs_resp.json()
+    assert Decimal(bs["cash_and_bank"]) == Decimal("100.00")
+    assert Decimal(bs["accounts_receivable"]) == Decimal("165.00")
+    assert Decimal(bs["inventory_value"]) == Decimal("1000.00")
+    assert Decimal(bs["accounts_payable"]) == Decimal("0")
 
 
 async def test_stock_summary(client, auth_headers):

@@ -12,7 +12,7 @@ from app.models.item import Item
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment
 from app.repositories.payments import get_paid_amount
-from app.schemas.reports import DayBookEntry, StockSummaryItem
+from app.schemas.reports import DayBookEntry, ExpenseCategoryTotal, StockSummaryItem
 
 INVOICE_DAY_BOOK_DIRECTIONS = {
     InvoiceType.TAX_INVOICE: "in",
@@ -280,6 +280,106 @@ async def day_book(
     total_in = sum((e.amount for e in entries if e.direction == "in"), Decimal("0"))
     total_out = sum((e.amount for e in entries if e.direction == "out"), Decimal("0"))
     return entries, total_in, total_out
+
+
+async def outstanding_payables(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
+    query = select(Invoice).where(
+        Invoice.tenant_id == tenant_id,
+        Invoice.supplier_id.is_not(None),
+        Invoice.status.in_([InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE]),
+    )
+    invoices = list((await db.execute(query)).scalars().all())
+    total = Decimal("0")
+    for invoice in invoices:
+        paid = await get_paid_amount(db, invoice.id)
+        total += invoice.grand_total - paid
+    return total
+
+
+async def cash_and_bank_balance(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
+    received_query = select(func.coalesce(func.sum(Payment.amount), 0)).where(
+        Payment.tenant_id == tenant_id, Payment.customer_id.is_not(None)
+    )
+    paid_to_suppliers_query = select(func.coalesce(func.sum(Payment.amount), 0)).where(
+        Payment.tenant_id == tenant_id, Payment.supplier_id.is_not(None)
+    )
+    expenses_query = select(func.coalesce(func.sum(ExpenseEntry.amount), 0)).where(
+        ExpenseEntry.tenant_id == tenant_id
+    )
+
+    received = (await db.execute(received_query)).scalar_one()
+    paid_to_suppliers = (await db.execute(paid_to_suppliers_query)).scalar_one()
+    expenses = (await db.execute(expenses_query)).scalar_one()
+    return received - paid_to_suppliers - expenses
+
+
+async def profit_loss(
+    db: AsyncSession, tenant_id: uuid.UUID, *, date_from: date | None, date_to: date | None
+) -> tuple[Decimal, Decimal, Decimal, list[ExpenseCategoryTotal], Decimal]:
+    def apply_date_filter(query):
+        if date_from is not None:
+            query = query.where(Invoice.issue_date >= date_from)
+        if date_to is not None:
+            query = query.where(Invoice.issue_date <= date_to)
+        return query
+
+    revenue_query = apply_date_filter(
+        select(func.coalesce(func.sum(Invoice.subtotal), 0)).where(
+            Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.TAX_INVOICE, Invoice.status != InvoiceStatus.DRAFT, Invoice.status != InvoiceStatus.VOID
+        )
+    )
+    returns_query = apply_date_filter(
+        select(func.coalesce(func.sum(Invoice.subtotal), 0)).where(
+            Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.CREDIT_NOTE, Invoice.status != InvoiceStatus.DRAFT, Invoice.status != InvoiceStatus.VOID
+        )
+    )
+
+    sales_revenue = (await db.execute(revenue_query)).scalar_one()
+    sales_returns = (await db.execute(returns_query)).scalar_one()
+
+    cogs_query = (
+        select(
+            InvoiceLineItem.quantity,
+            Item.purchase_price,
+            Invoice.type,
+        )
+        .join(Invoice, Invoice.id == InvoiceLineItem.invoice_id)
+        .outerjoin(Item, Item.id == InvoiceLineItem.item_id)
+        .where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.status != InvoiceStatus.VOID,
+            Invoice.type.in_([InvoiceType.TAX_INVOICE, InvoiceType.CREDIT_NOTE]),
+        )
+    )
+    cogs_query = apply_date_filter(cogs_query)
+
+    cost_of_goods_sold = Decimal("0")
+    for quantity, purchase_price, invoice_type in (await db.execute(cogs_query)).all():
+        if purchase_price is None:
+            continue
+        line_cost = quantity * purchase_price
+        if invoice_type == InvoiceType.CREDIT_NOTE:
+            cost_of_goods_sold -= line_cost
+        else:
+            cost_of_goods_sold += line_cost
+
+    expense_query = select(
+        ExpenseEntry.category, func.coalesce(func.sum(ExpenseEntry.amount), 0)
+    ).where(ExpenseEntry.tenant_id == tenant_id)
+    if date_from is not None:
+        expense_query = expense_query.where(ExpenseEntry.expense_date >= date_from)
+    if date_to is not None:
+        expense_query = expense_query.where(ExpenseEntry.expense_date <= date_to)
+    expense_query = expense_query.group_by(ExpenseEntry.category).order_by(ExpenseEntry.category)
+
+    expenses_by_category = [
+        ExpenseCategoryTotal(category=category, amount=amount)
+        for category, amount in (await db.execute(expense_query)).all()
+    ]
+    total_expenses = sum((e.amount for e in expenses_by_category), Decimal("0"))
+
+    return sales_revenue, sales_returns, cost_of_goods_sold, expenses_by_category, total_expenses
 
 
 async def stock_summary(db: AsyncSession, tenant_id: uuid.UUID) -> tuple[list[StockSummaryItem], Decimal]:

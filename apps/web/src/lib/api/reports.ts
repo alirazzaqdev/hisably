@@ -73,6 +73,32 @@ export interface StockSummaryResponse {
   total_stock_value: string;
 }
 
+export interface ExpenseCategoryTotal {
+  category: string;
+  amount: string;
+}
+
+export interface ProfitLossResponse {
+  sales_revenue: string;
+  sales_returns: string;
+  net_revenue: string;
+  cost_of_goods_sold: string;
+  gross_profit: string;
+  expenses_by_category: ExpenseCategoryTotal[];
+  total_expenses: string;
+  net_profit: string;
+}
+
+export interface BalanceSheetResponse {
+  cash_and_bank: string;
+  accounts_receivable: string;
+  inventory_value: string;
+  total_assets: string;
+  accounts_payable: string;
+  total_liabilities: string;
+  equity: string;
+}
+
 export const reportsApi = {
   kpis: () => apiRequest<DashboardKpis>("/dashboard/kpis"),
   salesTrend: (months = 6) => apiRequest<SalesTrendPoint[]>(`/dashboard/sales-trend?months=${months}`),
@@ -94,4 +120,12 @@ export const reportsApi = {
     return apiRequest<DayBookResponse>(`/reports/day-book${qs ? `?${qs}` : ""}`);
   },
   stockSummary: () => apiRequest<StockSummaryResponse>("/reports/stock-summary"),
+  profitLoss: (params: { dateFrom?: string; dateTo?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.dateFrom) query.set("date_from", params.dateFrom);
+    if (params.dateTo) query.set("date_to", params.dateTo);
+    const qs = query.toString();
+    return apiRequest<ProfitLossResponse>(`/reports/profit-loss${qs ? `?${qs}` : ""}`);
+  },
+  balanceSheet: () => apiRequest<BalanceSheetResponse>("/reports/balance-sheet"),
 };

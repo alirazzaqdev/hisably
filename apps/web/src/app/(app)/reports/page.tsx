@@ -31,6 +31,12 @@ export default function ReportsPage() {
           <Link href="/reports/stock-summary" className="text-body-sm text-accent-700 hover:underline">
             Stock summary →
           </Link>
+          <Link href="/reports/profit-loss" className="text-body-sm text-accent-700 hover:underline">
+            Profit &amp; Loss →
+          </Link>
+          <Link href="/reports/balance-sheet" className="text-body-sm text-accent-700 hover:underline">
+            Balance sheet →
+          </Link>
         </div>
       </div>
 
