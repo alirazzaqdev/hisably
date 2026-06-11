@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { reportsApi } from "@/lib/api/reports";
 import { tenantsApi } from "@/lib/api/tenants";
+import { downloadCsv } from "@/lib/csv";
 
 export default function BalanceSheetPage() {
   const { data: tenant } = useQuery({ queryKey: ["tenant", "me"], queryFn: tenantsApi.me });
@@ -16,14 +18,37 @@ export default function BalanceSheetPage() {
 
   const currency = tenant?.currency ?? "AED";
 
+  function exportCsv() {
+    if (!bs) return;
+    downloadCsv("balance-sheet.csv", [
+      ["Assets"],
+      ["Cash and bank", bs.cash_and_bank],
+      ["Accounts receivable", bs.accounts_receivable],
+      ["Inventory", bs.inventory_value],
+      ["Total assets", bs.total_assets],
+      [],
+      ["Liabilities & Equity"],
+      ["Accounts payable", bs.accounts_payable],
+      ["Total liabilities", bs.total_liabilities],
+      ["Equity", bs.equity],
+      ["Total liabilities & equity", bs.total_assets],
+    ]);
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Link href="/reports" className="text-body-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="mr-1 inline h-4 w-4" />
-          Back to reports
-        </Link>
-        <h1 className="mt-2 text-h1 text-foreground">Balance sheet</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <Link href="/reports" className="text-body-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="mr-1 inline h-4 w-4" />
+            Back to reports
+          </Link>
+          <h1 className="mt-2 text-h1 text-foreground">Balance sheet</h1>
+        </div>
+        <Button variant="secondary" onClick={exportCsv} disabled={!bs}>
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
