@@ -8,6 +8,7 @@ import { Download, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { customersApi } from "@/lib/api/customers";
+import { suppliersApi } from "@/lib/api/suppliers";
 import { invoicesApi, type InvoiceStatus } from "@/lib/api/invoices";
 import { InvoiceStatusBadge } from "../status-badge";
 
@@ -35,6 +36,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     queryKey: ["customers", invoice?.customer_id],
     queryFn: () => customersApi.get(invoice!.customer_id!),
     enabled: Boolean(invoice?.customer_id),
+  });
+
+  const { data: supplier } = useQuery({
+    queryKey: ["suppliers", invoice?.supplier_id],
+    queryFn: () => suppliersApi.get(invoice!.supplier_id!),
+    enabled: Boolean(invoice?.supplier_id),
   });
 
   const statusMutation = useMutation({
@@ -81,6 +88,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const canEdit = invoice.status === "draft" || invoice.status === "sent";
   const canVoid = invoice.status !== "void";
   const canDelete = invoice.status === "draft";
+  const canCreditNote = invoice.type === "tax_invoice" && invoice.status !== "draft" && invoice.status !== "void";
+  const canDebitNote = invoice.type === "purchase_bill" && invoice.status !== "draft" && invoice.status !== "void";
 
   return (
     <div className="flex flex-col gap-6">
@@ -187,8 +196,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             </CardHeader>
             <CardContent className="flex flex-col gap-2 text-body-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Customer</span>
-                <span className="text-foreground">{customer?.name ?? "—"}</span>
+                <span className="text-muted-foreground">{invoice.supplier_id ? "Supplier" : "Customer"}</span>
+                <span className="text-foreground">{(invoice.supplier_id ? supplier?.name : customer?.name) ?? "—"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Issue date</span>
@@ -222,6 +231,16 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   {action.label}
                 </Button>
               ))}
+              {canCreditNote && (
+                <Button asChild variant="secondary">
+                  <Link href={`/invoices/new?from=${invoice.id}&type=credit_note`}>Create credit note</Link>
+                </Button>
+              )}
+              {canDebitNote && (
+                <Button asChild variant="secondary">
+                  <Link href={`/invoices/new?from=${invoice.id}&type=debit_note`}>Create debit note</Link>
+                </Button>
+              )}
               {canDelete && (
                 <Button
                   variant="destructive"

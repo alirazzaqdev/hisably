@@ -53,6 +53,7 @@ class InvoiceCreate(BaseModel):
     language: InvoiceLanguage = InvoiceLanguage.EN
     line_items: list[InvoiceLineItemInput] = Field(default_factory=list, min_length=1)
     client_uuid: uuid.UUID | None = None
+    converted_from_id: uuid.UUID | None = None
 
 
 class InvoiceUpdate(BaseModel):
@@ -97,4 +98,5 @@ class InvoiceOut(BaseModel):
     pdf_template: PdfTemplate
     language: InvoiceLanguage
     void_reason: str | None
+    converted_from_id: uuid.UUID | None
     line_items: list[InvoiceLineItemOut] = Field(default_factory=list)

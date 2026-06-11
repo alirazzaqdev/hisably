@@ -5,7 +5,7 @@ import type { VatCategory } from "@/lib/api/items";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
-export type InvoiceType = "tax_invoice" | "quotation" | "proforma" | "credit_note" | "purchase_bill";
+export type InvoiceType = "tax_invoice" | "quotation" | "proforma" | "credit_note" | "debit_note" | "purchase_bill";
 export type InvoiceStatus = "draft" | "sent" | "partially_paid" | "paid" | "overdue" | "void";
 
 export interface InvoiceLineItem {
@@ -57,12 +57,14 @@ export interface Invoice {
   notes: string | null;
   terms: string | null;
   void_reason: string | null;
+  converted_from_id: string | null;
   line_items: InvoiceLineItem[];
 }
 
 export interface InvoiceInput {
   type?: InvoiceType;
   customer_id?: string | null;
+  supplier_id?: string | null;
   issue_date: string;
   due_date?: string | null;
   currency?: string;
@@ -70,13 +72,15 @@ export interface InvoiceInput {
   notes?: string | null;
   terms?: string | null;
   line_items: InvoiceLineItemInput[];
+  converted_from_id?: string | null;
 }
 
 export const invoicesApi = {
-  list: (params: { search?: string; status?: InvoiceStatus; page?: number; pageSize?: number } = {}) => {
+  list: (params: { search?: string; status?: InvoiceStatus; type?: InvoiceType; page?: number; pageSize?: number } = {}) => {
     const query = new URLSearchParams();
     if (params.search) query.set("search", params.search);
     if (params.status) query.set("status", params.status);
+    if (params.type) query.set("type", params.type);
     if (params.page) query.set("page", String(params.page));
     if (params.pageSize) query.set("page_size", String(params.pageSize));
     const qs = query.toString();

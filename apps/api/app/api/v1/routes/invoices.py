@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
 from app.db.session import get_db
-from app.models.enums import InvoiceStatus
+from app.models.enums import InvoiceStatus, InvoiceType
 from app.models.invoice import Invoice
 from app.models.tenant import Tenant
 from app.repositories import customers as customers_repo
@@ -27,13 +27,14 @@ def _to_out(invoice: Invoice) -> InvoiceOut:
 async def list_invoices(
     search: str | None = Query(default=None),
     status_filter: InvoiceStatus | None = Query(default=None, alias="status"),
+    type_filter: InvoiceType | None = Query(default=None, alias="type"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> Page[InvoiceOut]:
     items, total = await invoices_repo.list_paginated(
-        db, tenant.id, search=search, status=status_filter, page=page, page_size=page_size
+        db, tenant.id, search=search, status=status_filter, type=type_filter, page=page, page_size=page_size
     )
     return Page(items=[_to_out(i) for i in items], total=total, page=page, page_size=page_size)
 

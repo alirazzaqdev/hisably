@@ -49,7 +49,7 @@ async def supplier_statement(db: AsyncSession, tenant_id: uuid.UUID, supplier: S
                 Invoice.supplier_id == supplier.id,
                 Invoice.status != InvoiceStatus.DRAFT,
                 Invoice.status != InvoiceStatus.VOID,
-                Invoice.type == InvoiceType.PURCHASE_BILL,
+                Invoice.type.in_([InvoiceType.PURCHASE_BILL, InvoiceType.DEBIT_NOTE]),
             )
         )
     ).scalars().all()
@@ -60,7 +60,10 @@ async def supplier_statement(db: AsyncSession, tenant_id: uuid.UUID, supplier: S
 
     raw_entries: list[tuple] = []
     for invoice in invoices:
-        raw_entries.append((invoice.issue_date, "purchase_bill", invoice.invoice_number or invoice.draft_number, invoice.grand_total, Decimal("0")))
+        if invoice.type == InvoiceType.DEBIT_NOTE:
+            raw_entries.append((invoice.issue_date, "debit_note", invoice.invoice_number or invoice.draft_number, Decimal("0"), invoice.grand_total))
+        else:
+            raw_entries.append((invoice.issue_date, "purchase_bill", invoice.invoice_number or invoice.draft_number, invoice.grand_total, Decimal("0")))
 
     for payment in payments:
         raw_entries.append((payment.payment_date, "payment", payment.reference_no or str(payment.id)[:8], Decimal("0"), payment.amount))

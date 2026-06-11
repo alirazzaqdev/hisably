@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,26 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import { customersApi } from "@/lib/api/customers";
+import { suppliersApi } from "@/lib/api/suppliers";
 import { itemsApi, type VatCategory } from "@/lib/api/items";
-import { invoicesApi, type Invoice, type InvoiceInput, type InvoiceLineItemInput } from "@/lib/api/invoices";
+import { invoicesApi, type Invoice, type InvoiceInput, type InvoiceLineItemInput, type InvoiceType } from "@/lib/api/invoices";
 
 const VAT_CATEGORIES: { value: VatCategory; label: string; rate: number }[] = [
   { value: "standard", label: "Standard (5%)", rate: 5 },
   { value: "zero_rated", label: "Zero-rated", rate: 0 },
   { value: "exempt", label: "Exempt", rate: 0 },
 ];
+
+const DOCUMENT_TYPES: { value: InvoiceType; label: string }[] = [
+  { value: "tax_invoice", label: "Tax invoice" },
+  { value: "quotation", label: "Quotation" },
+  { value: "proforma", label: "Proforma invoice" },
+  { value: "credit_note", label: "Credit note (sales return)" },
+  { value: "purchase_bill", label: "Purchase bill" },
+  { value: "debit_note", label: "Debit note (purchase return)" },
+];
+
+const SUPPLIER_TYPES: InvoiceType[] = ["purchase_bill", "debit_note"];
 
 function emptyLine(): InvoiceLineItemInput {
   return { description: "", quantity: "1", unit_price: "0", vat_category: "standard" };
@@ -32,18 +44,34 @@ function todayIso(): string {
 export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const isEditing = Boolean(invoice);
+
+  const fromInvoiceId = searchParams.get("from");
+  const typeParam = searchParams.get("type") as InvoiceType | null;
 
   const { data: customers } = useQuery({
     queryKey: ["customers", "all"],
     queryFn: () => customersApi.list({ pageSize: 100 }),
   });
+  const { data: suppliers } = useQuery({
+    queryKey: ["suppliers", "all"],
+    queryFn: () => suppliersApi.list({ pageSize: 100 }),
+  });
   const { data: items } = useQuery({
     queryKey: ["items", "all"],
     queryFn: () => itemsApi.list({ pageSize: 100 }),
   });
+  const { data: sourceInvoice } = useQuery({
+    queryKey: ["invoices", fromInvoiceId],
+    queryFn: () => invoicesApi.get(fromInvoiceId!),
+    enabled: Boolean(fromInvoiceId) && !isEditing,
+  });
 
+  const [type, setType] = useState<InvoiceType>(invoice?.type ?? typeParam ?? "tax_invoice");
   const [customerId, setCustomerId] = useState(invoice?.customer_id ?? "");
+  const [supplierId, setSupplierId] = useState(invoice?.supplier_id ?? "");
+  const [convertedFromId, setConvertedFromId] = useState<string | null>(invoice?.converted_from_id ?? null);
   const [issueDate, setIssueDate] = useState(invoice?.issue_date ?? todayIso());
   const [dueDate, setDueDate] = useState(invoice?.due_date ?? "");
   const [notes, setNotes] = useState(invoice?.notes ?? "");
@@ -63,16 +91,39 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   );
   const [formError, setFormError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!sourceInvoice || isEditing) return;
+    setCustomerId(sourceInvoice.customer_id ?? "");
+    setSupplierId(sourceInvoice.supplier_id ?? "");
+    setConvertedFromId(sourceInvoice.id);
+    setLines(
+      sourceInvoice.line_items.map((li) => ({
+        item_id: li.item_id,
+        description: li.description,
+        quantity: li.quantity,
+        unit_price: li.unit_price,
+        discount_percent: li.discount_percent,
+        vat_category: li.vat_category,
+      }))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceInvoice, isEditing]);
+
+  const isSupplierDoc = SUPPLIER_TYPES.includes(type);
+
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload: InvoiceInput = {
-        customer_id: customerId || null,
+        type,
+        customer_id: isSupplierDoc ? null : customerId || null,
+        supplier_id: isSupplierDoc ? supplierId || null : null,
         issue_date: issueDate,
         due_date: dueDate || null,
         discount_amount: discountAmount || "0",
         notes: notes || null,
         terms: terms || null,
         line_items: lines,
+        converted_from_id: convertedFromId,
       };
       return isEditing ? invoicesApi.update(invoice!.id, payload) : invoicesApi.create(payload);
     },
@@ -134,17 +185,43 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       <CardContent>
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="flex flex-col gap-1.5 sm:col-span-1">
-              <Label htmlFor="customer">Customer</Label>
-              <Select id="customer" value={customerId ?? ""} onChange={(e) => setCustomerId(e.target.value)}>
-                <option value="">No customer</option>
-                {customers?.items.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            {!isEditing && (
+              <div className="flex flex-col gap-1.5 sm:col-span-1">
+                <Label htmlFor="doc_type">Document type</Label>
+                <Select id="doc_type" value={type} onChange={(e) => setType(e.target.value as InvoiceType)}>
+                  {DOCUMENT_TYPES.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {isSupplierDoc ? (
+              <div className="flex flex-col gap-1.5 sm:col-span-1">
+                <Label htmlFor="supplier">Supplier</Label>
+                <Select id="supplier" value={supplierId ?? ""} onChange={(e) => setSupplierId(e.target.value)}>
+                  <option value="">No supplier</option>
+                  {suppliers?.items.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 sm:col-span-1">
+                <Label htmlFor="customer">Customer</Label>
+                <Select id="customer" value={customerId ?? ""} onChange={(e) => setCustomerId(e.target.value)}>
+                  <option value="">No customer</option>
+                  {customers?.items.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="issue_date">Issue date</Label>
               <Input

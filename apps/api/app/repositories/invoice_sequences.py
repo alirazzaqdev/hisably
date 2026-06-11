@@ -11,6 +11,7 @@ SEQUENCED_INVOICE_TYPES = (
     InvoiceType.QUOTATION,
     InvoiceType.PROFORMA,
     InvoiceType.CREDIT_NOTE,
+    InvoiceType.DEBIT_NOTE,
     InvoiceType.PURCHASE_BILL,
 )
 

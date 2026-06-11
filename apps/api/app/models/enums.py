@@ -33,6 +33,7 @@ class InvoiceType(str, enum.Enum):
     QUOTATION = "quotation"
     PROFORMA = "proforma"
     CREDIT_NOTE = "credit_note"
+    DEBIT_NOTE = "debit_note"
     PURCHASE_BILL = "purchase_bill"
 
 

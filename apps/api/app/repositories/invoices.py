@@ -125,6 +125,7 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         terms=payload.terms,
         pdf_template=payload.pdf_template,
         language=payload.language,
+        converted_from_id=payload.converted_from_id,
         **summary,
     )
     db.add(invoice)
@@ -153,6 +154,7 @@ async def list_paginated(
     *,
     search: str | None,
     status: InvoiceStatus | None,
+    type: InvoiceType | None = None,
     page: int,
     page_size: int,
 ) -> tuple[list[Invoice], int]:
@@ -162,6 +164,10 @@ async def list_paginated(
     if status is not None:
         query = query.where(Invoice.status == status)
         count_query = count_query.where(Invoice.status == status)
+
+    if type is not None:
+        query = query.where(Invoice.type == type)
+        count_query = count_query.where(Invoice.type == type)
 
     if search:
         pattern = f"%{search}%"
