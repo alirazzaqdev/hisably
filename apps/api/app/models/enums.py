@@ -71,6 +71,12 @@ class PaymentMethod(str, enum.Enum):
     OTHER = "other"
 
 
+class ChequeStatus(str, enum.Enum):
+    PENDING = "pending"
+    CLEARED = "cleared"
+    BOUNCED = "bounced"
+
+
 class StockMovementReason(str, enum.Enum):
     SALE = "sale"
     PURCHASE = "purchase"

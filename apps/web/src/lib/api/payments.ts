@@ -3,6 +3,7 @@ import type { Page } from "@/lib/api/types";
 import type { InvoiceStatus } from "@/lib/api/invoices";
 
 export type PaymentMethod = "cash" | "bank_transfer" | "cheque" | "card" | "other";
+export type ChequeStatus = "pending" | "cleared" | "bounced";
 
 export interface PaymentAllocation {
   id: string;
@@ -25,6 +26,9 @@ export interface Payment {
   reference_no: string | null;
   payment_date: string;
   notes: string | null;
+  cheque_number: string | null;
+  cheque_date: string | null;
+  cheque_status: ChequeStatus | null;
   allocations: PaymentAllocation[];
 }
 
@@ -37,6 +41,8 @@ export interface PaymentInput {
   reference_no?: string | null;
   payment_date: string;
   notes?: string | null;
+  cheque_number?: string | null;
+  cheque_date?: string | null;
   allocations: PaymentAllocationInput[];
 }
 
@@ -68,6 +74,11 @@ export const paymentsApi = {
   create: (payload: PaymentInput) =>
     apiRequest<Payment>("/payments", { method: "POST", body: JSON.stringify(payload) }),
   remove: (id: string) => apiRequest<void>(`/payments/${id}`, { method: "DELETE" }),
+  setChequeStatus: (id: string, chequeStatus: ChequeStatus) =>
+    apiRequest<Payment>(`/payments/${id}/cheque-status`, {
+      method: "PATCH",
+      body: JSON.stringify({ cheque_status: chequeStatus }),
+    }),
   receivables: () => apiRequest<Receivable[]>("/receivables"),
   payables: () => apiRequest<Receivable[]>("/payables"),
 };

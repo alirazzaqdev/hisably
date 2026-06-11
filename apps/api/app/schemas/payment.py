@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import PaymentMethod
+from app.models.enums import ChequeStatus, PaymentMethod
 
 
 class PaymentAllocationInput(BaseModel):
@@ -29,8 +29,14 @@ class PaymentCreate(BaseModel):
     reference_no: str | None = Field(default=None, max_length=100)
     payment_date: date
     notes: str | None = Field(default=None, max_length=1000)
+    cheque_number: str | None = Field(default=None, max_length=50)
+    cheque_date: date | None = None
     allocations: list[PaymentAllocationInput] = Field(default_factory=list)
     client_uuid: uuid.UUID | None = None
+
+
+class ChequeStatusUpdate(BaseModel):
+    cheque_status: ChequeStatus
 
 
 class PaymentOut(BaseModel):
@@ -45,6 +51,9 @@ class PaymentOut(BaseModel):
     reference_no: str | None
     payment_date: date
     notes: str | None
+    cheque_number: str | None
+    cheque_date: date | None
+    cheque_status: ChequeStatus | None
     allocations: list[PaymentAllocationOut] = Field(default_factory=list)
 
 

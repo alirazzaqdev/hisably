@@ -113,3 +113,71 @@ async def test_receivables_lists_unpaid_invoices(client, auth_headers):
 async def test_payments_require_auth(client):
     resp = await client.get("/api/v1/payments")
     assert resp.status_code == 401
+
+
+async def test_cheque_payment_tracking_and_bounce(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+    invoice_id = invoice["id"]
+
+    payment_resp = await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "amount": "105.00",
+            "method": "cheque",
+            "cheque_number": "CHK-001",
+            "cheque_date": "2026-06-20",
+            "payment_date": "2026-06-05",
+            "allocations": [{"invoice_id": invoice_id, "amount": "105.00"}],
+        },
+        headers=auth_headers,
+    )
+    assert payment_resp.status_code == 201
+    payment = payment_resp.json()
+    assert payment["cheque_number"] == "CHK-001"
+    assert payment["cheque_date"] == "2026-06-20"
+    assert payment["cheque_status"] == "pending"
+
+    invoice_resp = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp.json()["status"] == "paid"
+
+    bounce_resp = await client.patch(
+        f"/api/v1/payments/{payment['id']}/cheque-status", json={"cheque_status": "bounced"}, headers=auth_headers
+    )
+    assert bounce_resp.status_code == 200
+    assert bounce_resp.json()["cheque_status"] == "bounced"
+
+    invoice_resp2 = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp2.json()["status"] == "sent"
+
+    clear_resp = await client.patch(
+        f"/api/v1/payments/{payment['id']}/cheque-status", json={"cheque_status": "cleared"}, headers=auth_headers
+    )
+    assert clear_resp.status_code == 200
+
+    invoice_resp3 = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp3.json()["status"] == "paid"
+
+
+async def test_cheque_status_rejected_for_non_cheque_payment(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+
+    payment_resp = await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "amount": "105.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "allocations": [{"invoice_id": invoice["id"], "amount": "105.00"}],
+        },
+        headers=auth_headers,
+    )
+    payment_id = payment_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/payments/{payment_id}/cheque-status", json={"cheque_status": "cleared"}, headers=auth_headers
+    )
+    assert resp.status_code == 400

@@ -5,11 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
 from app.db.session import get_db
+from app.models.enums import PaymentMethod
 from app.models.payment import Payment
 from app.models.tenant import Tenant
 from app.repositories import payments as payments_repo
 from app.schemas.common import Page
-from app.schemas.payment import PaymentAllocationOut, PaymentCreate, PaymentOut, ReceivableOut
+from app.schemas.payment import ChequeStatusUpdate, PaymentAllocationOut, PaymentCreate, PaymentOut, ReceivableOut
 
 router = APIRouter(tags=["payments"])
 
@@ -58,6 +59,23 @@ async def get_payment(
     payment = await payments_repo.get_by_id(db, tenant.id, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    return _to_out(payment)
+
+
+@router.patch("/payments/{payment_id}/cheque-status", response_model=PaymentOut)
+async def update_cheque_status(
+    payment_id: uuid.UUID,
+    payload: ChequeStatusUpdate,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> PaymentOut:
+    payment = await payments_repo.get_by_id(db, tenant.id, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.method != PaymentMethod.CHEQUE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This payment is not a cheque")
+    payment = await payments_repo.update_cheque_status(db, tenant.id, payment, payload.cheque_status)
+    await db.commit()
     return _to_out(payment)
 
 

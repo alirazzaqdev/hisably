@@ -2,10 +2,10 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import InvoiceStatus
+from app.models.enums import ChequeStatus, InvoiceStatus, PaymentMethod
 from app.models.invoice import Invoice
 from app.models.payment import Payment, PaymentAllocation
 from app.schemas.payment import PaymentCreate
@@ -13,8 +13,11 @@ from app.schemas.payment import PaymentCreate
 
 async def get_paid_amount(db: AsyncSession, invoice_id: uuid.UUID) -> Decimal:
     result = await db.execute(
-        select(func.coalesce(func.sum(PaymentAllocation.amount_allocated), 0)).where(
-            PaymentAllocation.invoice_id == invoice_id
+        select(func.coalesce(func.sum(PaymentAllocation.amount_allocated), 0))
+        .join(Payment, Payment.id == PaymentAllocation.payment_id)
+        .where(
+            PaymentAllocation.invoice_id == invoice_id,
+            or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
         )
     )
     return result.scalar_one()
@@ -49,6 +52,9 @@ async def create(db: AsyncSession, tenant_id: uuid.UUID, payload: PaymentCreate)
         reference_no=payload.reference_no,
         payment_date=payload.payment_date,
         notes=payload.notes,
+        cheque_number=payload.cheque_number,
+        cheque_date=payload.cheque_date,
+        cheque_status=ChequeStatus.PENDING if payload.method == PaymentMethod.CHEQUE else None,
         client_uuid=payload.client_uuid or uuid.uuid4(),
     )
     db.add(payment)
@@ -108,6 +114,23 @@ async def list_paginated(
     for payment in payments:
         payment.allocations_loaded = await get_allocations(db, payment.id)
     return payments, total
+
+
+async def update_cheque_status(db: AsyncSession, tenant_id: uuid.UUID, payment: Payment, status: ChequeStatus) -> Payment:
+    payment.cheque_status = status
+    await db.flush()
+
+    allocations = await get_allocations(db, payment.id)
+    for alloc in allocations:
+        result = await db.execute(
+            select(Invoice).where(Invoice.id == alloc.invoice_id, Invoice.tenant_id == tenant_id)
+        )
+        invoice = result.scalar_one_or_none()
+        if invoice is not None:
+            await _refresh_invoice_status(db, invoice)
+
+    payment.allocations_loaded = allocations
+    return payment
 
 
 async def delete(db: AsyncSession, tenant_id: uuid.UUID, payment: Payment) -> None:

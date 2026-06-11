@@ -50,6 +50,8 @@ export function PaymentForm() {
   const [referenceNo, setReferenceNo] = useState("");
   const [paymentDate, setPaymentDate] = useState(todayIso());
   const [notes, setNotes] = useState("");
+  const [chequeNumber, setChequeNumber] = useState("");
+  const [chequeDate, setChequeDate] = useState(todayIso());
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -86,6 +88,8 @@ export function PaymentForm() {
         reference_no: referenceNo || null,
         payment_date: paymentDate,
         notes: notes || null,
+        cheque_number: method === "cheque" ? chequeNumber || null : null,
+        cheque_date: method === "cheque" ? chequeDate || null : null,
         allocations: Object.entries(allocations)
           .filter(([, value]) => Number(value) > 0)
           .map(([invoice_id, value]) => ({ invoice_id, amount: value })),
@@ -187,6 +191,29 @@ export function PaymentForm() {
               <Label htmlFor="reference_no">Reference no.</Label>
               <Input id="reference_no" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} />
             </div>
+            {method === "cheque" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="cheque_number">Cheque number</Label>
+                  <Input
+                    id="cheque_number"
+                    required
+                    value={chequeNumber}
+                    onChange={(e) => setChequeNumber(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="cheque_date">Cheque date</Label>
+                  <Input
+                    id="cheque_date"
+                    type="date"
+                    required
+                    value={chequeDate}
+                    onChange={(e) => setChequeDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <Label htmlFor="notes">Notes</Label>
               <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />

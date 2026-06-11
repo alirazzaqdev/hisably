@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { customersApi } from "@/lib/api/customers";
-import { paymentsApi } from "@/lib/api/payments";
+import { Badge } from "@/components/ui/badge";
+import { paymentsApi, type ChequeStatus } from "@/lib/api/payments";
 import { InvoiceStatusBadge } from "../invoices/status-badge";
 
 const TABS = [
@@ -38,6 +39,15 @@ export default function PaymentsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => paymentsApi.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["receivables"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
+
+  const chequeStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: ChequeStatus }) => paymentsApi.setChequeStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["receivables"] });
@@ -82,6 +92,7 @@ export default function PaymentsPage() {
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Method</th>
                 <th className="px-4 py-3 font-medium">Reference</th>
+                <th className="px-4 py-3 font-medium">Cheque</th>
                 <th className="px-4 py-3 text-right font-medium">Amount</th>
                 <th className="w-10 px-2 py-3" />
               </tr>
@@ -96,7 +107,7 @@ export default function PaymentsPage() {
               )}
               {!paymentsLoading && payments?.items.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
+                  <td className="px-4 py-6 text-center text-muted-foreground" colSpan={7}>
                     No payments recorded yet.
                   </td>
                 </tr>
@@ -107,6 +118,49 @@ export default function PaymentsPage() {
                   <td className="px-4 py-3">{customerName(payment.customer_id)}</td>
                   <td className="px-4 py-3 text-muted-foreground capitalize">{payment.method.replace("_", " ")}</td>
                   <td className="px-4 py-3 text-muted-foreground">{payment.reference_no ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {payment.method === "cheque" ? (
+                      <div className="flex flex-col gap-1">
+                        <span>
+                          {payment.cheque_number} · {payment.cheque_date}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              payment.cheque_status === "cleared"
+                                ? "success"
+                                : payment.cheque_status === "bounced"
+                                  ? "danger"
+                                  : "neutral"
+                            }
+                            className="capitalize"
+                          >
+                            {payment.cheque_status}
+                          </Badge>
+                          {payment.cheque_status === "pending" && (
+                            <>
+                              <button
+                                className="text-caption text-accent-700 hover:underline"
+                                onClick={() => chequeStatusMutation.mutate({ id: payment.id, status: "cleared" })}
+                                disabled={chequeStatusMutation.isPending}
+                              >
+                                Mark cleared
+                              </button>
+                              <button
+                                className="text-caption text-danger-500 hover:underline"
+                                onClick={() => chequeStatusMutation.mutate({ id: payment.id, status: "bounced" })}
+                                disabled={chequeStatusMutation.isPending}
+                              >
+                                Mark bounced
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums">{payment.amount}</td>
                   <td className="px-2 py-3 text-center">
                     <button

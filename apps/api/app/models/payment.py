@@ -6,7 +6,7 @@ from sqlalchemy import Date, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import PaymentMethod
+from app.models.enums import ChequeStatus, PaymentMethod
 
 
 class Payment(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
@@ -21,6 +21,10 @@ class Payment(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     reference_no: Mapped[str | None] = mapped_column(String(100), nullable=True)
     payment_date: Mapped[date] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+    cheque_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    cheque_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cheque_status: Mapped[ChequeStatus | None] = mapped_column(Enum(ChequeStatus, native_enum=False), nullable=True)
 
     client_uuid: Mapped[uuid.UUID] = mapped_column(unique=True)
 
