@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { AlertTriangle, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { itemsApi } from "@/lib/api/items";
+import { cn } from "@/lib/utils";
 
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
@@ -47,36 +48,54 @@ export default function ItemsPage() {
               <th className="px-4 py-3 font-medium">Unit</th>
               <th className="px-4 py-3 text-right font-medium">Sale price</th>
               <th className="px-4 py-3 font-medium">VAT</th>
+              <th className="px-4 py-3 text-right font-medium">Stock</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
+                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
                   Loading…
                 </td>
               </tr>
             )}
             {!isLoading && data?.items.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
+                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
                   No items yet.
                 </td>
               </tr>
             )}
-            {data?.items.map((item) => (
-              <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                <td className="px-4 py-3">
-                  <Link href={`/items/${item.id}/edit`} className="font-medium text-foreground hover:text-accent-700">
-                    {item.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{item.sku ?? "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{item.unit}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{item.sale_price}</td>
-                <td className="px-4 py-3 text-muted-foreground">{item.vat_category.replace("_", " ")}</td>
-              </tr>
-            ))}
+            {data?.items.map((item) => {
+              const isLowStock =
+                item.track_inventory &&
+                item.current_stock !== null &&
+                item.low_stock_threshold !== null &&
+                Number(item.current_stock) <= Number(item.low_stock_threshold);
+              return (
+                <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                  <td className="px-4 py-3">
+                    <Link href={`/items/${item.id}/edit`} className="font-medium text-foreground hover:text-accent-700">
+                      {item.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{item.sku ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{item.unit}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{item.sale_price}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{item.vat_category.replace("_", " ")}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {item.track_inventory ? (
+                      <span className={cn("inline-flex items-center gap-1", isLowStock && "font-medium text-red-600")}>
+                        {isLowStock && <AlertTriangle className="h-3.5 w-3.5" />}
+                        {item.current_stock ?? "—"}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

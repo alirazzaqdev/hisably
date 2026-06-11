@@ -38,6 +38,21 @@ async def list_paginated(
     return list(items), total
 
 
+async def list_low_stock(db: AsyncSession, tenant_id: uuid.UUID) -> list[Item]:
+    query = (
+        select(Item)
+        .where(
+            Item.tenant_id == tenant_id,
+            Item.track_inventory.is_(True),
+            Item.low_stock_threshold.is_not(None),
+            Item.current_stock.is_not(None),
+            Item.current_stock <= Item.low_stock_threshold,
+        )
+        .order_by(Item.name)
+    )
+    return list((await db.execute(query)).scalars().all())
+
+
 async def update(db: AsyncSession, item: Item, payload: ItemUpdate) -> Item:
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)

@@ -43,6 +43,7 @@ export const itemsApi = {
     return apiRequest<Page<Item>>(`/items${qs ? `?${qs}` : ""}`);
   },
   get: (id: string) => apiRequest<Item>(`/items/${id}`),
+  lowStock: () => apiRequest<Item[]>("/items/low-stock"),
   create: (payload: ItemInput) => apiRequest<Item>("/items", { method: "POST", body: JSON.stringify(payload) }),
   update: (id: string, payload: Partial<ItemInput>) =>
     apiRequest<Item>(`/items/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),

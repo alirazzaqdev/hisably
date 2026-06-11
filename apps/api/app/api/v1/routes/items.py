@@ -25,6 +25,15 @@ async def list_items(
     return Page(items=[ItemOut.model_validate(i) for i in items], total=total, page=page, page_size=page_size)
 
 
+@router.get("/low-stock", response_model=list[ItemOut])
+async def list_low_stock_items(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> list[ItemOut]:
+    items = await items_repo.list_low_stock(db, tenant.id)
+    return [ItemOut.model_validate(i) for i in items]
+
+
 @router.post("", response_model=ItemOut, status_code=status.HTTP_201_CREATED)
 async def create_item(
     payload: ItemCreate,

@@ -38,3 +38,35 @@ async def test_item_crud_and_search(client, auth_headers):
 async def test_items_require_auth(client):
     resp = await client.get("/api/v1/items")
     assert resp.status_code == 401
+
+
+async def test_low_stock_items(client, auth_headers):
+    await client.post(
+        "/api/v1/items",
+        json={
+            "name": "Aluminium frame",
+            "sku": "ALU-001",
+            "track_inventory": True,
+            "current_stock": "5",
+            "low_stock_threshold": "10",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/v1/items",
+        json={
+            "name": "Glass sheet",
+            "sku": "GLS-002",
+            "track_inventory": True,
+            "current_stock": "50",
+            "low_stock_threshold": "10",
+        },
+        headers=auth_headers,
+    )
+    await client.post("/api/v1/items", json={"name": "Untracked item"}, headers=auth_headers)
+
+    resp = await client.get("/api/v1/items/low-stock", headers=auth_headers)
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) == 1
+    assert items[0]["name"] == "Aluminium frame"

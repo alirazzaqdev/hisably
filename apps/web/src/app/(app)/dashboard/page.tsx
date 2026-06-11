@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Package, FileText } from "lucide-react";
+import { Users, Package, FileText, AlertTriangle } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { customersApi } from "@/lib/api/customers";
 import { invoicesApi } from "@/lib/api/invoices";
@@ -23,6 +23,10 @@ export default function DashboardPage() {
     queryKey: ["invoices", "count"],
     queryFn: () => invoicesApi.list({ pageSize: 1 }),
   });
+  const { data: lowStockItems } = useQuery({
+    queryKey: ["items", "low-stock"],
+    queryFn: () => itemsApi.lowStock(),
+  });
 
   return (
     <div className="flex flex-col gap-8">
@@ -32,6 +36,19 @@ export default function DashboardPage() {
           Here&apos;s a quick overview of your business.
         </p>
       </div>
+
+      {lowStockItems && lowStockItems.length > 0 && (
+        <Link href="/items">
+          <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-body text-red-800 transition-colors hover:border-red-300">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <span>
+              {lowStockItems.length} item{lowStockItems.length === 1 ? "" : "s"} low on stock:{" "}
+              {lowStockItems.slice(0, 5).map((i) => i.name).join(", ")}
+              {lowStockItems.length > 5 ? "…" : ""}
+            </span>
+          </div>
+        </Link>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link href="/customers">
