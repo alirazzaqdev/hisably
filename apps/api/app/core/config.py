@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     s3_access_key_id: str | None = None
     s3_secret_access_key: str | None = None
 
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None
+
     @property
     def sqlalchemy_database_url(self) -> str:
         """Normalize the configured DATABASE_URL for the asyncpg driver.
