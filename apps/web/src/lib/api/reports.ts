@@ -58,6 +58,21 @@ export interface DayBookResponse {
   total_out: string;
 }
 
+export interface StockSummaryItem {
+  item_id: string;
+  name: string;
+  sku: string | null;
+  unit: string;
+  current_stock: string;
+  purchase_price: string;
+  stock_value: string;
+}
+
+export interface StockSummaryResponse {
+  items: StockSummaryItem[];
+  total_stock_value: string;
+}
+
 export const reportsApi = {
   kpis: () => apiRequest<DashboardKpis>("/dashboard/kpis"),
   salesTrend: (months = 6) => apiRequest<SalesTrendPoint[]>(`/dashboard/sales-trend?months=${months}`),
@@ -78,4 +93,5 @@ export const reportsApi = {
     const qs = query.toString();
     return apiRequest<DayBookResponse>(`/reports/day-book${qs ? `?${qs}` : ""}`);
   },
+  stockSummary: () => apiRequest<StockSummaryResponse>("/reports/stock-summary"),
 };

@@ -24,9 +24,14 @@ export default function ReportsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <h1 className="text-h1 text-foreground">Reports</h1>
-        <Link href="/reports/day-book" className="text-body-sm text-accent-700 hover:underline">
-          Day book →
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/reports/day-book" className="text-body-sm text-accent-700 hover:underline">
+            Day book →
+          </Link>
+          <Link href="/reports/stock-summary" className="text-body-sm text-accent-700 hover:underline">
+            Stock summary →
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -61,3 +61,18 @@ class DayBookResponse(BaseModel):
     entries: list[DayBookEntry]
     total_in: Decimal
     total_out: Decimal
+
+
+class StockSummaryItem(BaseModel):
+    item_id: uuid.UUID
+    name: str
+    sku: str | None
+    unit: str
+    current_stock: Decimal
+    purchase_price: Decimal
+    stock_value: Decimal
+
+
+class StockSummaryResponse(BaseModel):
+    items: list[StockSummaryItem]
+    total_stock_value: Decimal

@@ -12,7 +12,7 @@ from app.models.item import Item
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment
 from app.repositories.payments import get_paid_amount
-from app.schemas.reports import DayBookEntry
+from app.schemas.reports import DayBookEntry, StockSummaryItem
 
 INVOICE_DAY_BOOK_DIRECTIONS = {
     InvoiceType.TAX_INVOICE: "in",
@@ -280,3 +280,34 @@ async def day_book(
     total_in = sum((e.amount for e in entries if e.direction == "in"), Decimal("0"))
     total_out = sum((e.amount for e in entries if e.direction == "out"), Decimal("0"))
     return entries, total_in, total_out
+
+
+async def stock_summary(db: AsyncSession, tenant_id: uuid.UUID) -> tuple[list[StockSummaryItem], Decimal]:
+    items_query = (
+        select(Item)
+        .where(Item.tenant_id == tenant_id, Item.track_inventory.is_(True))
+        .order_by(Item.name)
+    )
+    items = list((await db.execute(items_query)).scalars().all())
+
+    summaries: list[StockSummaryItem] = []
+    total_value = Decimal("0")
+
+    for item in items:
+        current_stock = item.current_stock or Decimal("0")
+        stock_value = current_stock * item.purchase_price
+        total_value += stock_value
+
+        summaries.append(
+            StockSummaryItem(
+                item_id=item.id,
+                name=item.name,
+                sku=item.sku,
+                unit=item.unit.value,
+                current_stock=current_stock,
+                purchase_price=item.purchase_price,
+                stock_value=stock_value,
+            )
+        )
+
+    return summaries, total_value

@@ -125,3 +125,40 @@ async def test_day_book(client, auth_headers):
         "/api/v1/reports/day-book", params={"date_from": "2026-06-11"}, headers=auth_headers
     )
     assert other_day_resp.json()["entries"] == []
+
+
+async def test_stock_summary(client, auth_headers):
+    await client.post(
+        "/api/v1/items",
+        json={
+            "name": "Glass Sheet",
+            "sku": "GLS-001",
+            "unit": "pcs",
+            "sale_price": "150.00",
+            "purchase_price": "100.00",
+            "track_inventory": True,
+            "current_stock": "20",
+            "low_stock_threshold": "5",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/v1/items",
+        json={
+            "name": "Untracked Service",
+            "sale_price": "50.00",
+            "purchase_price": "0",
+            "track_inventory": False,
+        },
+        headers=auth_headers,
+    )
+
+    resp = await client.get("/api/v1/reports/stock-summary", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) == 1
+    item = data["items"][0]
+    assert item["name"] == "Glass Sheet"
+    assert item["current_stock"] == "20.000"
+    assert item["stock_value"] == "2000.00000"
+    assert data["total_stock_value"] == "2000.00000"
