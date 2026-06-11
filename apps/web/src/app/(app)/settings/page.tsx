@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api-client";
 import type { VatCategory } from "@/lib/api/onboarding";
 import { tenantsApi, type TenantUpdateInput } from "@/lib/api/tenants";
 import { usersApi } from "@/lib/api/users";
+import { BackupSection } from "./backup-section";
 import { TeamSection } from "./team-section";
 
 const VAT_CATEGORIES: { value: VatCategory; label: string }[] = [
@@ -180,6 +181,7 @@ export default function SettingsPage() {
       </Card>
 
       {user?.role === "owner" && <TeamSection />}
+      {user?.role === "owner" && <BackupSection />}
     </div>
   );
 }

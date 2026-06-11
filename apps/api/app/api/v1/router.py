@@ -4,6 +4,7 @@ from app.api.v1.routes import (
     accounts,
     attachments,
     auth,
+    backup,
     customers,
     dashboard,
     expenses,
@@ -43,3 +44,4 @@ api_router.include_router(attachments.router)
 api_router.include_router(accounts.router)
 api_router.include_router(recurring_invoices.router)
 api_router.include_router(public.router)
+api_router.include_router(backup.router)
