@@ -24,16 +24,16 @@ import { usersApi } from "@/lib/api/users";
 import { useAuthStore } from "@/stores/auth-store";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, available: true },
-  { href: "/customers", label: "Customers", icon: Users, available: true },
-  { href: "/suppliers", label: "Suppliers", icon: Truck, available: true },
-  { href: "/items", label: "Items", icon: Package, available: true },
-  { href: "/invoices", label: "Invoices", icon: FileText, available: true },
-  { href: "/payments", label: "Payments", icon: CreditCard, available: true },
-  { href: "/accounts", label: "Accounts", icon: Wallet, available: true },
-  { href: "/expenses", label: "Expenses", icon: Receipt, available: true },
-  { href: "/reports", label: "Reports", icon: BarChart3, available: true },
-  { href: "/settings", label: "Settings", icon: Settings, available: true },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, available: true, permission: null },
+  { href: "/customers", label: "Customers", icon: Users, available: true, permission: "customers" },
+  { href: "/suppliers", label: "Suppliers", icon: Truck, available: true, permission: "customers" },
+  { href: "/items", label: "Items", icon: Package, available: true, permission: "items" },
+  { href: "/invoices", label: "Invoices", icon: FileText, available: true, permission: "invoices" },
+  { href: "/payments", label: "Payments", icon: CreditCard, available: true, permission: "payments" },
+  { href: "/accounts", label: "Accounts", icon: Wallet, available: true, permission: "payments" },
+  { href: "/expenses", label: "Expenses", icon: Receipt, available: true, permission: "expenses" },
+  { href: "/reports", label: "Reports", icon: BarChart3, available: true, permission: "reports" },
+  { href: "/settings", label: "Settings", icon: Settings, available: true, permission: null },
 ] as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -67,6 +67,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
+
+            if (user && user.role === "staff" && item.permission && !user.permissions[item.permission]) {
+              return null;
+            }
 
             if (!item.available) {
               return (

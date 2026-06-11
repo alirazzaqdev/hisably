@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_tenant
+from app.api.deps import get_current_tenant, require_owner
 from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.repositories import tenants as tenants_repo
@@ -20,6 +20,7 @@ async def update_me(
     payload: TenantUpdate,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
+    _owner=Depends(require_owner),
 ) -> TenantOut:
     tenant = await tenants_repo.update(db, tenant, payload)
     await db.commit()

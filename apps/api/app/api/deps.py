@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
 from app.db.session import get_db
+from app.models.enums import UserRole
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories import tenants as tenants_repo
@@ -45,3 +46,20 @@ async def get_current_tenant(
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     return tenant
+
+
+async def require_owner(user: User = Depends(get_current_user)) -> User:
+    if user.role != UserRole.OWNER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the business owner can do this")
+    return user
+
+
+def require_permission(module: str):
+    async def _check(user: User = Depends(get_current_user)) -> User:
+        if user.role == UserRole.OWNER:
+            return user
+        if not user.permissions.get(module, False):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have access to this section")
+        return user
+
+    return _check

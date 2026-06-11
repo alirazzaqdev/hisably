@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_tenant
+from app.api.deps import get_current_tenant, require_permission
 from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.repositories import reports as reports_repo
@@ -12,7 +12,7 @@ from app.schemas.reports import VatSummary
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
-@router.get("/vat-summary", response_model=VatSummary)
+@router.get("/vat-summary", response_model=VatSummary, dependencies=[Depends(require_permission("reports"))])
 async def get_vat_summary(
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
