@@ -6,6 +6,7 @@ from app.models.activity import ActivityLog
 from app.models.attachment import Attachment
 from app.models.auth import RefreshToken
 from app.models.expense import ExpenseEntry
+from app.models.firm_membership import FirmMembership
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
 from app.models.item import Item
 from app.models.item_category import ItemCategory
@@ -41,4 +42,5 @@ __all__ = [
     "Attachment",
     "SyncLogEntry",
     "RefreshToken",
+    "FirmMembership",
 ]

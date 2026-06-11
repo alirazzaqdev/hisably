@@ -18,6 +18,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FirmSwitcher } from "@/components/firm-switcher";
 import { SyncStatusBanner } from "@/components/sync-status-banner";
 import { authApi } from "@/lib/api/auth";
 import { tenantsApi } from "@/lib/api/tenants";
@@ -64,6 +65,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="px-6 py-5">
           <span className="text-h3 font-semibold text-foreground">Hisably</span>
         </div>
+
+        {user && user.role === "owner" && <FirmSwitcher />}
 
         <nav className="flex flex-1 flex-col gap-1 px-3">
           {NAV_ITEMS.map((item) => {

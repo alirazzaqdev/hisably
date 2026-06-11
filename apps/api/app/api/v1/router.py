@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     customers,
     dashboard,
     expenses,
+    firms,
     invoices,
     item_categories,
     items,
@@ -28,6 +29,7 @@ api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(onboarding.router)
 api_router.include_router(tenants.router)
+api_router.include_router(firms.router)
 api_router.include_router(users.router)
 api_router.include_router(customers.router)
 api_router.include_router(suppliers.router)

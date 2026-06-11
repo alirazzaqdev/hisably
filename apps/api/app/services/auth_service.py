@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -16,6 +17,7 @@ from app.core.security import (
 from app.core.time import utcnow
 from app.models.enums import Country, UserRole
 from app.models.user import User
+from app.repositories import firm_memberships as firm_memberships_repo
 from app.repositories import refresh_tokens as refresh_tokens_repo
 from app.repositories import tenants as tenants_repo
 from app.repositories import users as users_repo
@@ -45,8 +47,9 @@ def _issue_otp(user: User) -> str:
     return code
 
 
-async def issue_token_pair(db: AsyncSession, user: User) -> TokenPair:
-    access_token = create_access_token(str(user.id), {"tenant_id": str(user.tenant_id)})
+async def issue_token_pair(db: AsyncSession, user: User, tenant_id: uuid.UUID | None = None) -> TokenPair:
+    active_tenant_id = tenant_id or user.tenant_id
+    access_token = create_access_token(str(user.id), {"tenant_id": str(active_tenant_id)})
     refresh_token = generate_refresh_token()
     await refresh_tokens_repo.create(db, user.id, refresh_token)
     await db.commit()
@@ -71,6 +74,8 @@ async def signup(db: AsyncSession, email: str, password: str) -> User:
     otp_code = _issue_otp(user)
     db.add(user)
     await db.flush()
+
+    await firm_memberships_repo.create(db, user.id, tenant.id)
     await db.commit()
 
     send_otp_email(user.email, otp_code, purpose="verify your account")
