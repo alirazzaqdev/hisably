@@ -9,13 +9,15 @@ from app.db.session import get_db
 from app.models.tenant import Tenant
 from app.repositories import customers as customers_repo
 from app.repositories import expenses as expenses_repo
+from app.repositories import invoices as invoices_repo
 from app.repositories import items as items_repo
+from app.repositories import payments as payments_repo
 from app.repositories import sync as sync_repo
 from app.schemas.customer import CustomerCreate, CustomerOut
 from app.schemas.expense import ExpenseCreate, ExpenseOut
-from app.schemas.invoice import InvoiceLineItemOut, InvoiceOut
+from app.schemas.invoice import InvoiceCreate, InvoiceLineItemOut, InvoiceOut
 from app.schemas.item import ItemCreate, ItemOut
-from app.schemas.payment import PaymentAllocationOut, PaymentOut
+from app.schemas.payment import PaymentAllocationOut, PaymentCreate, PaymentOut
 from app.schemas.sync import SyncMutationResult, SyncPullResponse, SyncPushRequest, SyncPushResponse
 
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -62,6 +64,10 @@ async def push(
                 entity = await items_repo.create(db, tenant.id, ItemCreate(**data))
             elif mutation.entity_type == "expense":
                 entity = await expenses_repo.create(db, tenant.id, ExpenseCreate(**data))
+            elif mutation.entity_type == "invoice":
+                entity = await invoices_repo.create(db, tenant, InvoiceCreate(**data))
+            elif mutation.entity_type == "payment":
+                entity = await payments_repo.create(db, tenant.id, PaymentCreate(**data))
             else:
                 raise ValueError(f"Unsupported entity type: {mutation.entity_type}")
         except (ValidationError, ValueError) as exc:

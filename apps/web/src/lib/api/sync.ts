@@ -5,7 +5,7 @@ import type { Invoice } from "@/lib/api/invoices";
 import type { Item } from "@/lib/api/items";
 import type { Payment } from "@/lib/api/payments";
 
-export type SyncEntityType = "customer" | "item" | "expense";
+export type SyncEntityType = "customer" | "item" | "expense" | "invoice" | "payment";
 
 export interface SyncMutation {
   entity_type: SyncEntityType;

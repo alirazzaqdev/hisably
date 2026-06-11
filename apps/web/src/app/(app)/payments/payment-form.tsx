@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api-client";
 import { accountsApi } from "@/lib/api/accounts";
 import { customersApi } from "@/lib/api/customers";
 import { paymentsApi, type PaymentInput, type PaymentMethod } from "@/lib/api/payments";
+import { createOrQueue } from "@/lib/offline/sync-engine";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "cash", label: "Cash" },
@@ -94,7 +95,7 @@ export function PaymentForm() {
           .filter(([, value]) => Number(value) > 0)
           .map(([invoice_id, value]) => ({ invoice_id, amount: value })),
       };
-      return paymentsApi.create(payload);
+      return createOrQueue("payment", payload, paymentsApi.create);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });

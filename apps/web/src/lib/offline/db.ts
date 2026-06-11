@@ -1,6 +1,6 @@
 import Dexie, { type Table } from "dexie";
 
-export type OutboxEntityType = "customer" | "item" | "expense";
+export type OutboxEntityType = "customer" | "item" | "expense" | "invoice" | "payment";
 
 export interface OutboxEntry {
   id?: number;

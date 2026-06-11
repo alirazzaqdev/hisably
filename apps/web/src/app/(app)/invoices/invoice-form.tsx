@@ -25,6 +25,7 @@ import {
   type InvoiceType,
   type PdfTemplate,
 } from "@/lib/api/invoices";
+import { createOrQueue } from "@/lib/offline/sync-engine";
 
 const VAT_CATEGORIES: { value: VatCategory; label: string; rate: number }[] = [
   { value: "standard", label: "Standard (5%)", rate: 5 },
@@ -176,11 +177,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         line_items: lines,
         converted_from_id: convertedFromId,
       };
-      return isEditing ? invoicesApi.update(invoice!.id, payload) : invoicesApi.create(payload);
+      return isEditing
+        ? invoicesApi.update(invoice!.id, payload)
+        : createOrQueue("invoice", payload, invoicesApi.create);
     },
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      router.push(`/invoices/${saved.id}`);
+      router.push(saved ? `/invoices/${saved.id}` : "/invoices");
     },
     onError: (error) => {
       if (error instanceof ApiError && typeof error.detail === "string") {

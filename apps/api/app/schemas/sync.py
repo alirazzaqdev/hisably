@@ -10,7 +10,7 @@ from app.schemas.invoice import InvoiceOut
 from app.schemas.item import ItemOut
 from app.schemas.payment import PaymentOut
 
-EntityType = Literal["customer", "item", "expense"]
+EntityType = Literal["customer", "item", "expense", "invoice", "payment"]
 
 
 class SyncMutation(BaseModel):
