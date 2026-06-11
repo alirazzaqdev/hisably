@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users, Package, FileText } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { customersApi } from "@/lib/api/customers";
+import { invoicesApi } from "@/lib/api/invoices";
 import { itemsApi } from "@/lib/api/items";
 import { tenantsApi } from "@/lib/api/tenants";
 
@@ -17,6 +18,10 @@ export default function DashboardPage() {
   const { data: items } = useQuery({
     queryKey: ["items", "count"],
     queryFn: () => itemsApi.list({ pageSize: 1 }),
+  });
+  const { data: invoices } = useQuery({
+    queryKey: ["invoices", "count"],
+    queryFn: () => invoicesApi.list({ pageSize: 1 }),
   });
 
   return (
@@ -53,15 +58,17 @@ export default function DashboardPage() {
           </Card>
         </Link>
 
-        <Card className="opacity-60">
-          <CardHeader>
-            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <FileText className="h-5 w-5" />
-            </div>
-            <CardTitle>—</CardTitle>
-            <CardDescription>Invoices (coming soon)</CardDescription>
-          </CardHeader>
-        </Card>
+        <Link href="/invoices">
+          <Card className="transition-colors hover:border-accent-600">
+            <CardHeader>
+              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-accent-600/10 text-accent-700">
+                <FileText className="h-5 w-5" />
+              </div>
+              <CardTitle>{invoices?.total ?? "—"}</CardTitle>
+              <CardDescription>Invoices</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
     </div>
   );

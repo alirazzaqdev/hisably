@@ -39,6 +39,7 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     exchange_rate: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=1)
 
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    discount_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     discount_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     vat_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     grand_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)

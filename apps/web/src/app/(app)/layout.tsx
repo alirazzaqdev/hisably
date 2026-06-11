@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, available: true },
   { href: "/customers", label: "Customers", icon: Users, available: true },
   { href: "/items", label: "Items", icon: Package, available: true },
-  { href: "/invoices", label: "Invoices", icon: FileText, available: false },
+  { href: "/invoices", label: "Invoices", icon: FileText, available: true },
   { href: "/payments", label: "Payments", icon: CreditCard, available: false },
   { href: "/expenses", label: "Expenses", icon: Receipt, available: false },
   { href: "/reports", label: "Reports", icon: BarChart3, available: false },
