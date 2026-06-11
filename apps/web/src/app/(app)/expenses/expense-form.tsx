@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
 import { expensesApi, type Expense, type ExpenseInput } from "@/lib/api/expenses";
+import { createOrQueue } from "@/lib/offline/sync-engine";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -30,7 +31,8 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const saveMutation = useMutation({
-    mutationFn: () => (isEditing ? expensesApi.update(expense!.id, form) : expensesApi.create(form)),
+    mutationFn: () =>
+      isEditing ? expensesApi.update(expense!.id, form) : createOrQueue("expense", form, expensesApi.create),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       router.push("/expenses");

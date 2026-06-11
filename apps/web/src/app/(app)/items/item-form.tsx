@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import { itemsApi, type Item, type ItemInput } from "@/lib/api/items";
+import { createOrQueue } from "@/lib/offline/sync-engine";
 
 const UNITS = ["pcs", "sqm", "sqft", "kg", "m", "box", "ltr"] as const;
 const VAT_CATEGORIES = [
@@ -36,7 +37,8 @@ export function ItemForm({ item }: { item?: Item }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const saveMutation = useMutation({
-    mutationFn: () => (isEditing ? itemsApi.update(item!.id, form) : itemsApi.create(form)),
+    mutationFn: () =>
+      isEditing ? itemsApi.update(item!.id, form) : createOrQueue("item", form, itemsApi.create),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       router.push("/items");

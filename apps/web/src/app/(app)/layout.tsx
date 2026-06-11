@@ -15,6 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SyncStatusBanner } from "@/components/sync-status-banner";
 import { authApi } from "@/lib/api/auth";
 import { tenantsApi } from "@/lib/api/tenants";
 import { usersApi } from "@/lib/api/users";
@@ -113,7 +114,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 bg-background px-6 py-6 md:px-10 md:py-8">{children}</main>
+      <div className="flex flex-1 flex-col">
+        <SyncStatusBanner />
+        <main className="flex-1 bg-background px-6 py-6 md:px-10 md:py-8">{children}</main>
+      </div>
     </div>
   );
 }

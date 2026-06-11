@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
 import { customersApi, type Customer, type CustomerInput } from "@/lib/api/customers";
+import { createOrQueue } from "@/lib/offline/sync-engine";
 
 export function CustomerForm({ customer }: { customer?: Customer }) {
   const router = useRouter();
@@ -28,7 +29,9 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      isEditing ? customersApi.update(customer!.id, form) : customersApi.create(form),
+      isEditing
+        ? customersApi.update(customer!.id, form)
+        : createOrQueue("customer", form, customersApi.create),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.push("/customers");
