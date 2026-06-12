@@ -198,6 +198,7 @@ export function ItemForm({ item }: { item?: Item }) {
                 id="sale_price"
                 type="number"
                 step="0.01"
+                min="0"
                 value={form.sale_price ?? "0"}
                 onChange={(e) => update("sale_price", e.target.value)}
               />
@@ -208,6 +209,7 @@ export function ItemForm({ item }: { item?: Item }) {
                 id="purchase_price"
                 type="number"
                 step="0.01"
+                min="0"
                 value={form.purchase_price ?? "0"}
                 onChange={(e) => update("purchase_price", e.target.value)}
               />
@@ -258,6 +260,7 @@ export function ItemForm({ item }: { item?: Item }) {
                       id={`price-${priceList.id}`}
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="Use sale price"
                       value={priceListPrices[priceList.id] ?? ""}
                       onChange={(e) =>

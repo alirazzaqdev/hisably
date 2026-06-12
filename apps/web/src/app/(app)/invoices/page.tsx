@@ -11,6 +11,7 @@ import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
 import { invoicesApi, type InvoiceType } from "@/lib/api/invoices";
 import { InvoiceStatusBadge } from "./status-badge";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 const TYPE_LABELS: Record<InvoiceType, string> = {
   tax_invoice: "Tax invoice",
@@ -30,7 +31,7 @@ export default function InvoicesPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<InvoiceType | "">("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["invoices", search, typeFilter],
     queryFn: () => invoicesApi.list({ search: search || undefined, type: typeFilter || undefined, pageSize: 50 }),
   });
@@ -98,19 +99,10 @@ export default function InvoicesPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.items.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
-                  No invoices yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={6}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={6} />}
+            {!isLoading && !isError && data?.items.length === 0 && (
+              <TableStateRow colSpan={6}>No invoices yet.</TableStateRow>
             )}
             {data?.items.map((invoice) => (
               <tr key={invoice.id} className="border-b border-border last:border-0 hover:bg-muted/50">

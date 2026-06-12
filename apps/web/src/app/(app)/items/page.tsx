@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { itemCategoriesApi } from "@/lib/api/item-categories";
 import { itemsApi } from "@/lib/api/items";
 import { cn } from "@/lib/utils";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
@@ -20,7 +21,7 @@ export default function ItemsPage() {
     queryFn: () => itemCategoriesApi.list(),
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["items", search, categoryId],
     queryFn: () => itemsApi.list({ search: search || undefined, categoryId: categoryId || undefined, pageSize: 50 }),
   });
@@ -81,19 +82,10 @@ export default function ItemsPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={7}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.items.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={7}>
-                  No items yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={7}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={7} />}
+            {!isLoading && !isError && data?.items.length === 0 && (
+              <TableStateRow colSpan={7}>No items yet.</TableStateRow>
             )}
             {data?.items.map((item) => {
               const isLowStock =

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { customersApi } from "@/lib/api/customers";
 import { recurringInvoicesApi, type RecurrenceFrequency } from "@/lib/api/recurring-invoices";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 const FREQUENCY_LABELS: Record<RecurrenceFrequency, string> = {
   weekly: "Weekly",
@@ -20,7 +21,7 @@ export default function RecurringInvoicesPage() {
   const queryClient = useQueryClient();
   const [generatingId, setGeneratingId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["recurring-invoices"],
     queryFn: () => recurringInvoicesApi.list({ pageSize: 50 }),
   });
@@ -78,19 +79,10 @@ export default function RecurringInvoicesPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={7}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.items.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={7}>
-                  No recurring invoices set up yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={7}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={7} />}
+            {!isLoading && !isError && data?.items.length === 0 && (
+              <TableStateRow colSpan={7}>No recurring invoices set up yet.</TableStateRow>
             )}
             {data?.items.map((recurring) => (
               <tr key={recurring.id} className="border-b border-border last:border-0 hover:bg-muted/50">
@@ -109,6 +101,7 @@ export default function RecurringInvoicesPage() {
                       className="text-caption text-accent-700 hover:underline disabled:opacity-50"
                       onClick={() => generateMutation.mutate(recurring.id)}
                       disabled={!recurring.is_active || generatingId === recurring.id}
+                      aria-label={`Generate invoice now for ${customerName(recurring.customer_id)}`}
                     >
                       {generatingId === recurring.id ? "Generating…" : "Generate now"}
                     </button>
@@ -116,6 +109,11 @@ export default function RecurringInvoicesPage() {
                       className="text-caption text-muted-foreground hover:underline"
                       onClick={() => toggleMutation.mutate({ id: recurring.id, isActive: !recurring.is_active })}
                       disabled={toggleMutation.isPending}
+                      aria-label={
+                        recurring.is_active
+                          ? `Pause recurring invoice for ${customerName(recurring.customer_id)}`
+                          : `Resume recurring invoice for ${customerName(recurring.customer_id)}`
+                      }
                     >
                       {recurring.is_active ? "Pause" : "Resume"}
                     </button>

@@ -7,11 +7,12 @@ import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { suppliersApi } from "@/lib/api/suppliers";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function SuppliersPage() {
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["suppliers", search],
     queryFn: () => suppliersApi.list({ search: search || undefined, pageSize: 50 }),
   });
@@ -50,19 +51,10 @@ export default function SuppliersPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.items.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
-                  No suppliers yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={5}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={5} />}
+            {!isLoading && !isError && data?.items.length === 0 && (
+              <TableStateRow colSpan={5}>No suppliers yet.</TableStateRow>
             )}
             {data?.items.map((supplier) => (
               <tr key={supplier.id} className="border-b border-border last:border-0 hover:bg-muted/50">

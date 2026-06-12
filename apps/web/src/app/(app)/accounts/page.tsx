@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { accountsApi } from "@/lib/api/accounts";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function AccountsPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => accountsApi.list(),
   });
@@ -35,19 +36,10 @@ export default function AccountsPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={4}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={4}>
-                  No accounts yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={4}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={4} />}
+            {!isLoading && !isError && data?.length === 0 && (
+              <TableStateRow colSpan={4}>No accounts yet.</TableStateRow>
             )}
             {data?.map((account) => (
               <tr key={account.id} className="border-b border-border last:border-0 hover:bg-muted/50">

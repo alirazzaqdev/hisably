@@ -135,6 +135,13 @@ async def _wipe_tenant_data(db: AsyncSession, tenant_id: uuid.UUID) -> None:
 
 
 async def import_data(db: AsyncSession, tenant_id: uuid.UUID, data: dict[str, Any]) -> None:
+    version = data.get("version")
+    if version != BACKUP_VERSION:
+        raise ValueError(
+            f"Unsupported backup version {version!r} (expected {BACKUP_VERSION}). "
+            "Please export a new backup from the current version of the app."
+        )
+
     await _wipe_tenant_data(db, tenant_id)
     await db.flush()
 

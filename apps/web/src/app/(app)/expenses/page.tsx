@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Paperclip, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { expensesApi } from "@/lib/api/expenses";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function ExpensesPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => expensesApi.list({ pageSize: 50 }),
   });
@@ -38,19 +39,10 @@ export default function ExpensesPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.items.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
-                  No expenses recorded yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={5}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={5} />}
+            {!isLoading && !isError && data?.items.length === 0 && (
+              <TableStateRow colSpan={5}>No expenses recorded yet.</TableStateRow>
             )}
             {data?.items.map((expense) => (
               <tr key={expense.id} className="border-b border-border last:border-0 hover:bg-muted/50">

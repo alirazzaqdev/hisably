@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { itemCategoriesApi } from "@/lib/api/item-categories";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function ItemCategoriesPage() {
   const queryClient = useQueryClient();
@@ -14,7 +15,7 @@ export default function ItemCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories, isLoading, isError } = useQuery({
     queryKey: ["item-categories"],
     queryFn: () => itemCategoriesApi.list(),
   });
@@ -88,19 +89,10 @@ export default function ItemCategoriesPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={2}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && categories?.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={2}>
-                  No categories yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={2}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={2} />}
+            {!isLoading && !isError && categories?.length === 0 && (
+              <TableStateRow colSpan={2}>No categories yet.</TableStateRow>
             )}
             {categories?.map((category) => (
               <tr key={category.id} className="border-b border-border last:border-0 hover:bg-muted/50">
@@ -128,16 +120,22 @@ export default function ItemCategoriesPage() {
                         size="sm"
                         onClick={() => saveEditing(category.id)}
                         disabled={updateMutation.isPending}
+                        aria-label="Save category name"
                       >
                         <Check className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} aria-label="Cancel editing">
                         <X className="h-4 w-4" />
                       </Button>
                     </>
                   ) : (
                     <>
-                      <Button variant="ghost" size="sm" onClick={() => startEditing(category.id, category.name)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEditing(category.id, category.name)}
+                        aria-label={`Rename ${category.name}`}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
@@ -145,6 +143,7 @@ export default function ItemCategoriesPage() {
                         size="sm"
                         onClick={() => deleteMutation.mutate(category.id)}
                         disabled={deleteMutation.isPending}
+                        aria-label={`Delete ${category.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

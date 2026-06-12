@@ -90,8 +90,9 @@ def compute_invoice_totals(
     lines = computed_lines
     extra_discount_total = 0
 
-    if invoice_level_discount > 0 and computed_lines:
-        taxable_subtotal = sum(l.taxable_amount for l in computed_lines)
+    taxable_subtotal = sum(l.taxable_amount for l in computed_lines)
+
+    if invoice_level_discount > 0 and computed_lines and taxable_subtotal > 0:
         allocated = 0
         new_lines: list[InvoiceLineItemComputed] = []
 

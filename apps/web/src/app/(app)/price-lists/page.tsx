@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { priceListsApi } from "@/lib/api/price-lists";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function PriceListsPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
 
-  const { data: priceLists, isLoading } = useQuery({
+  const { data: priceLists, isLoading, isError } = useQuery({
     queryKey: ["price-lists"],
     queryFn: () => priceListsApi.list(),
   });
@@ -68,19 +69,10 @@ export default function PriceListsPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={2}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && priceLists?.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-muted-foreground" colSpan={2}>
-                  No price lists yet.
-                </td>
-              </tr>
+            {isLoading && <TableStateRow colSpan={2}>Loading…</TableStateRow>}
+            {isError && <TableErrorRow colSpan={2} />}
+            {!isLoading && !isError && priceLists?.length === 0 && (
+              <TableStateRow colSpan={2}>No price lists yet.</TableStateRow>
             )}
             {priceLists?.map((priceList) => (
               <tr key={priceList.id} className="border-b border-border last:border-0 hover:bg-muted/50">
@@ -91,6 +83,7 @@ export default function PriceListsPage() {
                     size="sm"
                     onClick={() => deleteMutation.mutate(priceList.id)}
                     disabled={deleteMutation.isPending}
+                    aria-label={`Delete ${priceList.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

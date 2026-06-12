@@ -25,6 +25,23 @@ import { tenantsApi } from "@/lib/api/tenants";
 import { usersApi } from "@/lib/api/users";
 import { useAuthStore } from "@/stores/auth-store";
 
+// Mirrors the `permission` keys in NAV_ITEMS, but also covers sub-routes
+// (e.g. /items/new, /item-categories, /price-lists) that aren't top-level
+// nav links, so staff can't bypass module permissions via direct URL.
+const PERMISSION_BY_PATH: { prefix: string; permission: string }[] = [
+  { prefix: "/customers", permission: "customers" },
+  { prefix: "/suppliers", permission: "customers" },
+  { prefix: "/items", permission: "items" },
+  { prefix: "/item-categories", permission: "items" },
+  { prefix: "/price-lists", permission: "items" },
+  { prefix: "/invoices", permission: "invoices" },
+  { prefix: "/recurring-invoices", permission: "invoices" },
+  { prefix: "/payments", permission: "payments" },
+  { prefix: "/accounts", permission: "payments" },
+  { prefix: "/expenses", permission: "expenses" },
+  { prefix: "/reports", permission: "reports" },
+];
+
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, available: true, permission: null },
   { href: "/customers", label: "Customers", icon: Users, available: true, permission: "customers" },
@@ -46,6 +63,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: tenant } = useQuery({ queryKey: ["tenant", "me"], queryFn: tenantsApi.me });
   const { data: user } = useQuery({ queryKey: ["user", "me"], queryFn: usersApi.me });
+
+  const deniedRoute =
+    user?.role === "staff"
+      ? PERMISSION_BY_PATH.find((p) => pathname.startsWith(p.prefix) && !user.permissions[p.permission])
+      : undefined;
 
   async function handleLogout() {
     if (refreshToken) {
@@ -129,7 +151,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1 flex-col">
         <SyncStatusBanner />
-        <main className="flex-1 bg-background px-6 py-6 md:px-10 md:py-8">{children}</main>
+        <main className="flex-1 bg-background px-6 py-6 md:px-10 md:py-8">
+          {deniedRoute ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
+              <h1 className="text-h2 text-foreground">Access denied</h1>
+              <p className="text-body text-muted-foreground">
+                You don&apos;t have permission to view this section. Ask the business owner to grant you
+                access.
+              </p>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );

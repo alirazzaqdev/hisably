@@ -9,6 +9,7 @@ import { customersApi } from "@/lib/api/customers";
 import { Badge } from "@/components/ui/badge";
 import { paymentsApi, type ChequeStatus } from "@/lib/api/payments";
 import { InvoiceStatusBadge } from "../invoices/status-badge";
+import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 const TABS = [
   { value: "history", label: "Payment history" },
@@ -21,11 +22,11 @@ export default function PaymentsPage() {
   const [tab, setTab] = useState<Tab>("history");
   const queryClient = useQueryClient();
 
-  const { data: payments, isLoading: paymentsLoading } = useQuery({
+  const { data: payments, isLoading: paymentsLoading, isError: paymentsError } = useQuery({
     queryKey: ["payments"],
     queryFn: () => paymentsApi.list({ pageSize: 50 }),
   });
-  const { data: receivables, isLoading: receivablesLoading } = useQuery({
+  const { data: receivables, isLoading: receivablesLoading, isError: receivablesError } = useQuery({
     queryKey: ["receivables"],
     queryFn: () => paymentsApi.receivables(),
     enabled: tab === "receivables",
@@ -98,19 +99,10 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody>
-              {paymentsLoading && (
-                <tr>
-                  <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
-                    Loading…
-                  </td>
-                </tr>
-              )}
-              {!paymentsLoading && payments?.items.length === 0 && (
-                <tr>
-                  <td className="px-4 py-6 text-center text-muted-foreground" colSpan={7}>
-                    No payments recorded yet.
-                  </td>
-                </tr>
+              {paymentsLoading && <TableStateRow colSpan={7}>Loading…</TableStateRow>}
+              {paymentsError && <TableErrorRow colSpan={7} />}
+              {!paymentsLoading && !paymentsError && payments?.items.length === 0 && (
+                <TableStateRow colSpan={7}>No payments recorded yet.</TableStateRow>
               )}
               {payments?.items.map((payment) => (
                 <tr key={payment.id} className="border-b border-border last:border-0 hover:bg-muted/50">
@@ -143,6 +135,7 @@ export default function PaymentsPage() {
                                 className="text-caption text-accent-700 hover:underline"
                                 onClick={() => chequeStatusMutation.mutate({ id: payment.id, status: "cleared" })}
                                 disabled={chequeStatusMutation.isPending}
+                                aria-label={`Mark cheque ${payment.cheque_number} as cleared`}
                               >
                                 Mark cleared
                               </button>
@@ -150,6 +143,7 @@ export default function PaymentsPage() {
                                 className="text-caption text-danger-500 hover:underline"
                                 onClick={() => chequeStatusMutation.mutate({ id: payment.id, status: "bounced" })}
                                 disabled={chequeStatusMutation.isPending}
+                                aria-label={`Mark cheque ${payment.cheque_number} as bounced`}
                               >
                                 Mark bounced
                               </button>
@@ -193,19 +187,10 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody>
-              {receivablesLoading && (
-                <tr>
-                  <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
-                    Loading…
-                  </td>
-                </tr>
-              )}
-              {!receivablesLoading && receivables?.length === 0 && (
-                <tr>
-                  <td className="px-4 py-6 text-center text-muted-foreground" colSpan={6}>
-                    No outstanding invoices.
-                  </td>
-                </tr>
+              {receivablesLoading && <TableStateRow colSpan={6}>Loading…</TableStateRow>}
+              {receivablesError && <TableErrorRow colSpan={6} />}
+              {!receivablesLoading && !receivablesError && receivables?.length === 0 && (
+                <TableStateRow colSpan={6}>No outstanding invoices.</TableStateRow>
               )}
               {receivables?.map((r) => (
                 <tr key={r.invoice_id} className="border-b border-border last:border-0 hover:bg-muted/50">

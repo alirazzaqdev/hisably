@@ -72,11 +72,12 @@ export function computeInvoiceTotals(
   let lines = computedLines;
   let extraDiscountTotal = 0;
 
-  if (invoiceLevelDiscount > 0) {
+  const taxableSubtotal = sum(computedLines.map((l) => l.taxableAmount));
+
+  if (invoiceLevelDiscount > 0 && taxableSubtotal > 0) {
     // Apply the invoice-level discount proportionally to each line's taxable
     // amount, then re-derive VAT on the reduced taxable amount. The last
     // line absorbs any rounding remainder so totals foot exactly.
-    const taxableSubtotal = sum(computedLines.map((l) => l.taxableAmount));
     let allocated = 0;
 
     lines = computedLines.map((line, idx) => {
