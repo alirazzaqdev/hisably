@@ -1,11 +1,10 @@
 "use client";
 
-import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ledgerApi } from "@/lib/api/ledger";
 
-export default function CustomerStatementPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function CustomerStatementPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const { data: statement, isLoading } = useQuery({
     queryKey: ["customers", id, "statement"],

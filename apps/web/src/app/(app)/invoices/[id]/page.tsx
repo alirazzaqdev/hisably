@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, MessageCircle, Pencil } from "lucide-react";
@@ -21,8 +21,8 @@ const NEXT_STATUS: Partial<Record<InvoiceStatus, { label: string; status: Invoic
   partially_paid: [{ label: "Mark as paid", status: "paid" }],
 };
 
-export default function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function InvoiceDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const router = useRouter();
   const queryClient = useQueryClient();
   const [downloading, setDownloading] = useState(false);

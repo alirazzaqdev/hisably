@@ -1,12 +1,11 @@
 "use client";
 
-import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { invoicesApi } from "@/lib/api/invoices";
 import { InvoiceForm } from "../../invoice-form";
 
-export default function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EditInvoicePage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ["invoices", id],

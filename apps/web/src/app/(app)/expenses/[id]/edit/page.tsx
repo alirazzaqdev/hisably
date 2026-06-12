@@ -1,12 +1,11 @@
 "use client";
 
-import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { expensesApi } from "@/lib/api/expenses";
 import { ExpenseForm } from "../../expense-form";
 
-export default function EditExpensePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EditExpensePage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ["expenses", id],

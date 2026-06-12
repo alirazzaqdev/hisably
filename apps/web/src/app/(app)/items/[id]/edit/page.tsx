@@ -1,12 +1,11 @@
 "use client";
 
-import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { itemsApi } from "@/lib/api/items";
 import { ItemForm } from "../../item-form";
 
-export default function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EditItemPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const { data: item, isLoading } = useQuery({
     queryKey: ["items", id],

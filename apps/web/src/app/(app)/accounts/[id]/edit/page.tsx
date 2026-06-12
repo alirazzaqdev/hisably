@@ -1,12 +1,11 @@
 "use client";
 
-import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { accountsApi } from "@/lib/api/accounts";
 import { AccountForm } from "../../account-form";
 
-export default function EditAccountPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EditAccountPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const { data: account, isLoading } = useQuery({
     queryKey: ["accounts", id],
