@@ -12,11 +12,19 @@ from app.main import app
 FIXTURES_PATH = (
     Path(__file__).resolve().parents[3] / "packages" / "shared" / "test-fixtures" / "line-item-cases.json"
 )
+INDUSTRY_PROFILE_FIXTURES_PATH = (
+    Path(__file__).resolve().parents[3] / "packages" / "shared" / "test-fixtures" / "industry-profile-cases.json"
+)
 
 
 @pytest.fixture(scope="session")
 def line_item_fixtures() -> dict:
     return json.loads(FIXTURES_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def industry_profile_fixtures() -> dict:
+    return json.loads(INDUSTRY_PROFILE_FIXTURES_PATH.read_text(encoding="utf-8"))
 
 
 @pytest.fixture

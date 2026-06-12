@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -174,6 +175,22 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      {user?.role === "owner" && (
+        <Card className="max-w-2xl">
+          <CardHeader>
+            <CardTitle>Document fields</CardTitle>
+            <CardDescription>
+              Pick an industry profile and customize which optional fields appear on your invoices.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="secondary">
+              <Link href="/settings/document-fields">Manage document fields</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="max-w-2xl">
         <CardHeader>

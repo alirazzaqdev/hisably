@@ -1,0 +1,54 @@
+{
+  "$schema": "Shared industry-profile resolver test fixtures. Loaded by both packages/shared (TS) and apps/api (Python) test suites so resolveEnabledFields()/resolve_enabled_fields() agree on every preset.",
+  "cases": [
+    {
+      "name": "general_default_has_nothing_enabled",
+      "industry_profile": "general",
+      "overrides": {},
+      "expected_enabled": []
+    },
+    {
+      "name": "general_with_single_override",
+      "industry_profile": "general",
+      "overrides": { "header.lpo_no": true },
+      "expected_enabled": ["header.lpo_no"]
+    },
+    {
+      "name": "glass_aluminium_preset_defaults",
+      "industry_profile": "glass_aluminium",
+      "overrides": {},
+      "expected_enabled": [
+        "header.lpo_no",
+        "header.villa_no",
+        "header.site_address",
+        "line.width_height_sqm",
+        "line.linear_meter",
+        "line.brand_model"
+      ]
+    },
+    {
+      "name": "glass_aluminium_with_field_disabled_via_override",
+      "industry_profile": "glass_aluminium",
+      "overrides": { "line.linear_meter": false },
+      "expected_enabled": [
+        "header.lpo_no",
+        "header.villa_no",
+        "header.site_address",
+        "line.width_height_sqm",
+        "line.brand_model"
+      ]
+    },
+    {
+      "name": "electronics_mobile_preset_defaults",
+      "industry_profile": "electronics_mobile",
+      "overrides": {},
+      "expected_enabled": ["line.serial_imei", "line.brand_model", "line.warranty_months"]
+    },
+    {
+      "name": "unknown_preset_behaves_like_general",
+      "industry_profile": "does_not_exist",
+      "overrides": {},
+      "expected_enabled": []
+    }
+  ]
+}

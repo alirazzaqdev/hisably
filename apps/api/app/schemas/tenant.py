@@ -1,7 +1,8 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from app.catalog.industry_profiles import resolve_enabled_fields
 from app.models.enums import Country, VatCategory
 
 
@@ -23,6 +24,9 @@ class TenantUpdate(BaseModel):
     logo_url: str | None = None
     invoice_prefix: str | None = Field(default=None, max_length=16)
     default_vat_category: VatCategory | None = None
+    industry_profile: str | None = Field(default=None, max_length=32)
+    enabled_fields: dict[str, bool] | None = None
+    field_labels: dict[str, str] | None = None
 
 
 class TenantOut(BaseModel):
@@ -38,3 +42,11 @@ class TenantOut(BaseModel):
     logo_url: str | None
     invoice_prefix: str
     default_vat_category: VatCategory
+    industry_profile: str
+    enabled_fields: dict[str, bool]
+    field_labels: dict[str, str]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def resolved_fields(self) -> dict[str, bool]:
+        return resolve_enabled_fields(self.industry_profile, self.enabled_fields)

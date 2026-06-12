@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, Enum, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -19,3 +19,11 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     default_vat_category: Mapped[VatCategory] = mapped_column(
         Enum(VatCategory, native_enum=False), default=VatCategory.STANDARD
     )
+
+    # Industry preset key (e.g. "general", "glass_aluminium"). Drives default
+    # optional-field visibility via app.catalog.industry_profiles.
+    industry_profile: Mapped[str] = mapped_column(String(32), default="general")
+    # Per-tenant overrides on top of the preset defaults, e.g. {"header.lpo_no": true}.
+    enabled_fields: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Per-tenant label overrides for catalog fields, e.g. {"header.lpo_no": "PO Number"}.
+    field_labels: Mapped[dict] = mapped_column(JSON, default=dict)
