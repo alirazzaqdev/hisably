@@ -9,7 +9,8 @@ async def test_item_category_crud_and_filter(client, auth_headers):
     list_resp = await client.get("/api/v1/item-categories", headers=auth_headers)
     assert list_resp.status_code == 200
     categories = list_resp.json()
-    assert len(categories) == 1
+    assert any(c["name"] == "Glass" for c in categories)
+    seeded_count = len(categories) - 1
 
     item_resp = await client.post(
         "/api/v1/items",
@@ -38,7 +39,7 @@ async def test_item_category_crud_and_filter(client, auth_headers):
     assert delete_resp.status_code == 204
 
     list_after_delete = await client.get("/api/v1/item-categories", headers=auth_headers)
-    assert list_after_delete.json() == []
+    assert len(list_after_delete.json()) == seeded_count
 
 
 async def test_item_categories_require_auth(client):

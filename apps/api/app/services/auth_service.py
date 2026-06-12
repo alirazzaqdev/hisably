@@ -18,6 +18,7 @@ from app.core.time import utcnow
 from app.models.enums import Country, UserRole
 from app.models.user import User
 from app.repositories import firm_memberships as firm_memberships_repo
+from app.repositories import item_categories as item_categories_repo
 from app.repositories import refresh_tokens as refresh_tokens_repo
 from app.repositories import tenants as tenants_repo
 from app.repositories import users as users_repo
@@ -76,6 +77,7 @@ async def signup(db: AsyncSession, email: str, password: str) -> User:
     await db.flush()
 
     await firm_memberships_repo.create(db, user.id, tenant.id)
+    await item_categories_repo.seed_defaults(db, tenant.id)
     await db.commit()
 
     send_otp_email(user.email, otp_code, purpose="verify your account")

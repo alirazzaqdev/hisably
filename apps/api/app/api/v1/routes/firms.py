@@ -7,6 +7,7 @@ from app.api.deps import get_token_payload, require_owner
 from app.db.session import get_db
 from app.models.user import User
 from app.repositories import firm_memberships as firm_memberships_repo
+from app.repositories import item_categories as item_categories_repo
 from app.repositories import tenants as tenants_repo
 from app.schemas.firm import FirmCreate, FirmOut, FirmSwitchResponse
 from app.services.auth_service import issue_token_pair
@@ -45,6 +46,7 @@ async def create_firm(
 ) -> FirmOut:
     tenant = await tenants_repo.create(db, business_name=payload.business_name, country=payload.country)
     await firm_memberships_repo.create(db, owner.id, tenant.id)
+    await item_categories_repo.seed_defaults(db, tenant.id)
     await db.commit()
     return FirmOut(
         id=tenant.id,

@@ -6,12 +6,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.item_category import ItemCategory
 from app.schemas.item_category import ItemCategoryCreate, ItemCategoryUpdate
 
+DEFAULT_CATEGORY_NAMES = [
+    "General",
+    "Electronics & Accessories",
+    "Hardware & Tools",
+    "Groceries & FMCG",
+    "Stationery & Office Supplies",
+    "Cosmetics & Personal Care",
+    "Clothing & Textiles",
+    "Spare Parts & Machinery",
+]
+
 
 async def create(db: AsyncSession, tenant_id: uuid.UUID, payload: ItemCategoryCreate) -> ItemCategory:
     category = ItemCategory(tenant_id=tenant_id, **payload.model_dump())
     db.add(category)
     await db.flush()
     return category
+
+
+async def seed_defaults(db: AsyncSession, tenant_id: uuid.UUID) -> list[ItemCategory]:
+    categories = [ItemCategory(tenant_id=tenant_id, name=name) for name in DEFAULT_CATEGORY_NAMES]
+    db.add_all(categories)
+    await db.flush()
+    return categories
 
 
 async def get_by_id(db: AsyncSession, tenant_id: uuid.UUID, category_id: uuid.UUID) -> ItemCategory | None:
