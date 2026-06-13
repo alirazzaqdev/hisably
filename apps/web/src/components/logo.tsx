@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
@@ -15,16 +16,26 @@ export function LogoMark({
   monochrome?: boolean;
   style?: React.CSSProperties;
 }) {
+  const gradientId = useId();
+
   return (
     <svg
       viewBox="0 0 32 32"
-      className={className}
+      className={cn(!monochrome && "drop-shadow-[0_2px_6px_rgba(13,148,136,0.35)]", className)}
       style={style}
       role="img"
       aria-label="Hisably"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {!monochrome && <rect width="32" height="32" rx="8" fill="currentColor" className="text-accent-600" />}
+      {!monochrome && (
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#2DD4BF" />
+            <stop offset="100%" stopColor="#0F766E" />
+          </linearGradient>
+        </defs>
+      )}
+      {!monochrome && <rect width="32" height="32" rx="8" fill={`url(#${gradientId})`} />}
       <path
         d="M11 8v16M21 8v16M11 16h10"
         stroke={monochrome ? "currentColor" : "white"}
