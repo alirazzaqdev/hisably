@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +26,7 @@ function generateEan13(): string {
   return digits + checkDigit;
 }
 
-const UNITS = ["pcs", "sqm", "sqft", "kg", "m", "box", "ltr"] as const;
+const UNITS = ["pcs", "sqm", "lm", "sqft", "kg", "m", "box", "ltr"] as const;
 const VAT_CATEGORIES = [
   { value: "standard", label: "Standard (5%)" },
   { value: "zero_rated", label: "Zero-rated" },
@@ -46,6 +47,8 @@ export function ItemForm({ item }: { item?: Item }) {
     purchase_price: item?.purchase_price ?? "0",
     vat_category: item?.vat_category ?? "standard",
     track_inventory: item?.track_inventory ?? false,
+    current_stock: item?.current_stock ?? "0",
+    low_stock_threshold: item?.low_stock_threshold ?? "",
     category_id: item?.category_id ?? null,
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -89,9 +92,14 @@ export function ItemForm({ item }: { item?: Item }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload: ItemInput = {
+        ...form,
+        current_stock: form.track_inventory ? form.current_stock || "0" : null,
+        low_stock_threshold: form.track_inventory && form.low_stock_threshold ? form.low_stock_threshold : null,
+      };
       const saved = isEditing
-        ? await itemsApi.update(item!.id, form)
-        : await createOrQueue("item", form, itemsApi.create);
+        ? await itemsApi.update(item!.id, payload)
+        : await createOrQueue("item", payload, itemsApi.create);
       if (saved && priceLists?.length) {
         const entries = Object.entries(priceListPrices)
           .filter(([, price]) => price.trim() !== "")
@@ -245,6 +253,44 @@ export function ItemForm({ item }: { item?: Item }) {
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-md border border-border p-4">
+            <label className="flex items-center gap-2 text-body text-foreground">
+              <Checkbox
+                checked={form.track_inventory}
+                onChange={(e) => update("track_inventory", e.target.checked)}
+              />
+              Track inventory for this item
+            </label>
+
+            {form.track_inventory && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="current_stock">Current stock</Label>
+                  <Input
+                    id="current_stock"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.current_stock ?? "0"}
+                    onChange={(e) => update("current_stock", e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="low_stock_threshold">Low stock alert below</Label>
+                  <Input
+                    id="low_stock_threshold"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    placeholder="No alert"
+                    value={form.low_stock_threshold ?? ""}
+                    onChange={(e) => update("low_stock_threshold", e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {priceLists && priceLists.length > 0 && (

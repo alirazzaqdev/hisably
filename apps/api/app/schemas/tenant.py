@@ -27,6 +27,15 @@ class TenantUpdate(BaseModel):
     industry_profile: str | None = Field(default=None, max_length=32)
     enabled_fields: dict[str, bool] | None = None
     field_labels: dict[str, str] | None = None
+    cheque_payee_name: str | None = Field(default=None, max_length=255)
+    bank_name: str | None = Field(default=None, max_length=255)
+    bank_account_number: str | None = Field(default=None, max_length=64)
+    bank_iban: str | None = Field(default=None, max_length=64)
+    contact_person: str | None = Field(default=None, max_length=255)
+    contact_phone: str | None = Field(default=None, max_length=32)
+    stamp_url: str | None = Field(default=None, max_length=500)
+    signature_url: str | None = Field(default=None, max_length=500)
+    branding_options: dict[str, dict[str, bool]] | None = None
 
 
 class TenantOut(BaseModel):
@@ -45,6 +54,15 @@ class TenantOut(BaseModel):
     industry_profile: str
     enabled_fields: dict[str, bool]
     field_labels: dict[str, str]
+    cheque_payee_name: str | None
+    bank_name: str | None
+    bank_account_number: str | None
+    bank_iban: str | None
+    contact_person: str | None
+    contact_phone: str | None
+    stamp_url: str | None
+    signature_url: str | None
+    branding_options: dict[str, dict[str, bool]]
 
     @computed_field  # type: ignore[prop-decorator]
     @property

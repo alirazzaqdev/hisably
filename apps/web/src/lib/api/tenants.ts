@@ -12,6 +12,15 @@ export interface TenantUpdateInput {
   industry_profile?: string;
   enabled_fields?: Record<string, boolean>;
   field_labels?: Record<string, string>;
+  cheque_payee_name?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_iban?: string | null;
+  contact_person?: string | null;
+  contact_phone?: string | null;
+  stamp_url?: string | null;
+  signature_url?: string | null;
+  branding_options?: Record<string, Record<string, boolean>>;
 }
 
 export const tenantsApi = {

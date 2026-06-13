@@ -6,8 +6,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { priceListsApi } from "@/lib/api/price-lists";
-import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 export default function PriceListsPage() {
   const queryClient = useQueryClient();
@@ -39,7 +39,7 @@ export default function PriceListsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-h1 text-foreground">Price lists</h1>
+      <PageHeader title="Price lists" description="Group items into pricing tiers, e.g. Wholesale or Retail." />
 
       <Card className="max-w-md">
         <CardHeader>
@@ -69,10 +69,26 @@ export default function PriceListsPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && <TableStateRow colSpan={2}>Loading…</TableStateRow>}
-            {isError && <TableErrorRow colSpan={2} />}
+            {isLoading && (
+              <tr>
+                <td colSpan={2} className="px-4 py-6 text-center text-body text-muted-foreground">
+                  Loading…
+                </td>
+              </tr>
+            )}
+            {isError && (
+              <tr>
+                <td colSpan={2} className="px-4 py-6 text-center text-body text-danger-500">
+                  Something went wrong. Please try again.
+                </td>
+              </tr>
+            )}
             {!isLoading && !isError && priceLists?.length === 0 && (
-              <TableStateRow colSpan={2}>No price lists yet.</TableStateRow>
+              <tr>
+                <td colSpan={2} className="px-4 py-6 text-center text-body text-muted-foreground">
+                  No price lists yet.
+                </td>
+              </tr>
             )}
             {priceLists?.map((priceList) => (
               <tr key={priceList.id} className="border-b border-border last:border-0 hover:bg-muted/50">

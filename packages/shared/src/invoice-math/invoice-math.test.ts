@@ -19,15 +19,64 @@ describe("computeLineItem", () => {
     expect(line.lineTotal).toBe(2100);
   });
 
-  it("derives quantity from width x height for area-based items", () => {
+  it("derives quantity from widthMm x heightMm for SQM lines", () => {
     const line = computeLineItem(
-      { description: "Glass panel", width: 2.5, height: 1.2, unitPrice: 500, vatCategory: "standard" },
+      { description: "Glass panel", widthMm: 2500, heightMm: 1200, unitPrice: 500, vatCategory: "standard" },
       AE
     );
     expect(line.quantity).toBe(3);
+    expect(line.computedGross).toBe(1500);
     expect(line.grossAmount).toBe(1500);
     expect(line.vatAmount).toBe(75);
     expect(line.lineTotal).toBe(1575);
+  });
+
+  it("multiplies SQM area by quantity for SQM lines with qty > 1", () => {
+    const line = computeLineItem(
+      {
+        description: "Glass panel",
+        widthMm: 6450,
+        heightMm: 5650,
+        quantity: 1,
+        unitPrice: 110000,
+        vatCategory: "standard",
+      },
+      AE
+    );
+    // 6.45 * 5.65 = 36.4425 sqm * 110000 fils = 4,008,675 fils = 40,086.75
+    expect(line.quantity).toBeCloseTo(36.4425, 4);
+    expect(line.computedGross).toBe(4008675);
+    expect(line.grossAmount).toBe(4008675);
+  });
+
+  it("derives quantity from lengthMm for LM lines", () => {
+    const line = computeLineItem(
+      { description: "Aluminium profile", lengthMm: 3000, quantity: 2, unitPrice: 1000, vatCategory: "standard" },
+      AE
+    );
+    // 3m * 2 = 6 lm
+    expect(line.quantity).toBe(6);
+    expect(line.computedGross).toBe(6000);
+    expect(line.grossAmount).toBe(6000);
+  });
+
+  it("overrideTotal replaces the computed gross amount but keeps discount/VAT logic", () => {
+    const line = computeLineItem(
+      {
+        description: "Glass panel",
+        widthMm: 2500,
+        heightMm: 1200,
+        unitPrice: 500,
+        overrideTotal: 1400,
+        vatCategory: "standard",
+      },
+      AE
+    );
+    expect(line.computedGross).toBe(1500);
+    expect(line.grossAmount).toBe(1400);
+    expect(line.taxableAmount).toBe(1400);
+    expect(line.vatAmount).toBe(70);
+    expect(line.lineTotal).toBe(1470);
   });
 
   it("applies a percentage discount before VAT", () => {

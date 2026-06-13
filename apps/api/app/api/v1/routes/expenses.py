@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,12 +28,24 @@ async def _to_out(db: AsyncSession, tenant_id: uuid.UUID, expense: ExpenseEntry)
 @router.get("", response_model=Page[ExpenseOut])
 async def list_expenses(
     category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> Page[ExpenseOut]:
-    items, total = await expenses_repo.list_paginated(db, tenant.id, category=category, page=page, page_size=page_size)
+    items, total = await expenses_repo.list_paginated(
+        db,
+        tenant.id,
+        category=category,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+    )
     return Page(items=[await _to_out(db, tenant.id, e) for e in items], total=total, page=page, page_size=page_size)
 
 

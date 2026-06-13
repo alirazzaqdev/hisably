@@ -10,8 +10,37 @@ import { vatRateForCategory } from "../tax/index.js";
 import type { Country } from "../types/index.js";
 
 /**
+ * Resolves the effective quantity for a line item:
+ * - SQM lines (widthMm & heightMm provided): (widthMm/1000) * (heightMm/1000) * (quantity ?? 1).
+ * - LM lines (lengthMm provided): (lengthMm/1000) * (quantity ?? 1).
+ * - Otherwise: quantity ?? 1.
+ *
+ * This is the core "new math" for area/linear-meter pricing and is shared
+ * between the offline frontend (for live totals while editing) and the
+ * backend (as part of computeLineItem), so both agree to the fils.
+ */
+export function resolveLineQuantity(
+  input: Pick<InvoiceLineItemInput, "widthMm" | "heightMm" | "lengthMm" | "quantity">
+): number {
+  if (input.widthMm !== undefined && input.heightMm !== undefined) {
+    return (input.widthMm / 1000) * (input.heightMm / 1000) * (input.quantity ?? 1);
+  }
+  if (input.lengthMm !== undefined) {
+    return (input.lengthMm / 1000) * (input.quantity ?? 1);
+  }
+  return input.quantity ?? 1;
+}
+
+/**
  * Computes all derived fields for a single invoice line item.
- * - For area-based items (width & height provided), quantity = width * height.
+ * - For SQM lines (widthMm & heightMm provided), quantity = (widthMm/1000) *
+ *   (heightMm/1000) * (quantity ?? 1).
+ * - For LM lines (lengthMm provided), quantity = (lengthMm/1000) * (quantity ?? 1).
+ * - computedGross = unitPrice * quantity * (finalPaymentFactor ?? 1), where
+ *   finalPaymentFactor is a milestone-billing multiplier (default 1).
+ * - overrideTotal, if set, replaces the computed gross amount (e.g. for
+ *   negotiated/rounded line totals); discount and VAT are then applied on top
+ *   of it as usual.
  * - Discount: discountAmount takes precedence; otherwise discountPercent is
  *   applied to the gross amount.
  * - VAT is computed on the post-discount (taxable) amount.
@@ -21,12 +50,11 @@ export function computeLineItem(
   input: InvoiceLineItemInput,
   country: Country
 ): InvoiceLineItemComputed {
-  const quantity =
-    input.width !== undefined && input.height !== undefined
-      ? input.width * input.height
-      : input.quantity ?? 1;
-
-  const grossAmount = roundHalfAwayFromZero(input.unitPrice * quantity);
+  const quantity = resolveLineQuantity(input);
+  const computedGross = roundHalfAwayFromZero(
+    input.unitPrice * quantity * (input.finalPaymentFactor ?? 1)
+  );
+  const grossAmount = input.overrideTotal ?? computedGross;
 
   let discountApplied = 0;
   if (input.discountAmount !== undefined) {
@@ -45,6 +73,7 @@ export function computeLineItem(
   return {
     ...input,
     quantity,
+    computedGross,
     grossAmount,
     discountApplied,
     taxableAmount,

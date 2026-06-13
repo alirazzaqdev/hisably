@@ -12,11 +12,14 @@ class InvoiceLineItemInput(BaseModel):
     description: str = Field(min_length=1, max_length=500)
     description_ar: str | None = Field(default=None, max_length=500)
     quantity: Decimal | None = None
-    width: Decimal | None = None
-    height: Decimal | None = None
+    width_mm: Decimal | None = None
+    height_mm: Decimal | None = None
+    length_mm: Decimal | None = None
     unit_price: Decimal = Decimal("0")
     discount_percent: Decimal | None = None
     discount_amount: Decimal | None = None
+    override_total: Decimal | None = None
+    final_payment_factor: Decimal | None = None
     vat_category: VatCategory = VatCategory.STANDARD
 
 
@@ -28,11 +31,15 @@ class InvoiceLineItemOut(BaseModel):
     description: str
     description_ar: str | None
     quantity: Decimal
-    width: Decimal | None
-    height: Decimal | None
+    width_mm: Decimal | None
+    height_mm: Decimal | None
+    length_mm: Decimal | None
     unit_price: Decimal
     discount_percent: Decimal | None
     discount_amount: Decimal | None
+    computed_total: Decimal | None
+    override_total: Decimal | None
+    final_payment_factor: Decimal | None
     vat_category: VatCategory
     vat_rate: Decimal
     vat_amount: Decimal
@@ -53,6 +60,10 @@ class InvoiceCreate(BaseModel):
     pdf_template: PdfTemplate = PdfTemplate.MINIMAL
     accent_color: str | None = Field(default=None, max_length=16)
     language: InvoiceLanguage = InvoiceLanguage.EN
+    lpo_no: str | None = Field(default=None, max_length=64)
+    project_villa_no: str | None = Field(default=None, max_length=128)
+    bill_to_address: str | None = Field(default=None, max_length=500)
+    ship_to_address: str | None = Field(default=None, max_length=500)
     line_items: list[InvoiceLineItemInput] = Field(default_factory=list, min_length=1)
     client_uuid: uuid.UUID | None = None
     converted_from_id: uuid.UUID | None = None
@@ -71,6 +82,10 @@ class InvoiceUpdate(BaseModel):
     pdf_template: PdfTemplate | None = None
     accent_color: str | None = Field(default=None, max_length=16)
     language: InvoiceLanguage | None = None
+    lpo_no: str | None = Field(default=None, max_length=64)
+    project_villa_no: str | None = Field(default=None, max_length=128)
+    bill_to_address: str | None = Field(default=None, max_length=500)
+    ship_to_address: str | None = Field(default=None, max_length=500)
     line_items: list[InvoiceLineItemInput] | None = Field(default=None, min_length=1)
 
 
@@ -103,6 +118,10 @@ class InvoiceOut(BaseModel):
     pdf_template: PdfTemplate
     accent_color: str | None
     language: InvoiceLanguage
+    lpo_no: str | None
+    project_villa_no: str | None
+    bill_to_address: str | None
+    ship_to_address: str | None
     void_reason: str | None
     converted_from_id: uuid.UUID | None
     public_token: str | None

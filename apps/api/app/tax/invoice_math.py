@@ -19,15 +19,19 @@ class InvoiceLineItemInput:
     item_id: str | None = None
     description_ar: str | None = None
     quantity: float | None = None
-    width: float | None = None
-    height: float | None = None
+    width_mm: float | None = None
+    height_mm: float | None = None
+    length_mm: float | None = None
     discount_percent: float | None = None
     discount_amount: int | None = None
+    override_total: int | None = None  # minor units
+    final_payment_factor: float | None = None
     vat_category: VatCategory = VatCategory.STANDARD
 
 
 @dataclass
 class InvoiceLineItemComputed(InvoiceLineItemInput):
+    computed_gross: int = 0
     gross_amount: int = 0
     discount_applied: int = 0
     taxable_amount: int = 0
@@ -46,13 +50,26 @@ class InvoiceTotals:
     lines: list[InvoiceLineItemComputed] = field(default_factory=list)
 
 
-def compute_line_item(line: InvoiceLineItemInput, country: Country) -> InvoiceLineItemComputed:
-    if line.width is not None and line.height is not None:
-        quantity = line.width * line.height
-    else:
-        quantity = line.quantity if line.quantity is not None else 1
+def resolve_line_quantity(line: InvoiceLineItemInput) -> float:
+    """Resolves the effective quantity for a line item.
 
-    gross_amount = round_half_away_from_zero(line.unit_price * quantity)
+    - SQM lines (width_mm & height_mm provided): (width_mm/1000) * (height_mm/1000) * (quantity or 1).
+    - LM lines (length_mm provided): (length_mm/1000) * (quantity or 1).
+    - Otherwise: quantity or 1.
+    """
+    quantity = line.quantity if line.quantity is not None else 1
+    if line.width_mm is not None and line.height_mm is not None:
+        return (line.width_mm / 1000) * (line.height_mm / 1000) * quantity
+    if line.length_mm is not None:
+        return (line.length_mm / 1000) * quantity
+    return quantity
+
+
+def compute_line_item(line: InvoiceLineItemInput, country: Country) -> InvoiceLineItemComputed:
+    quantity = resolve_line_quantity(line)
+    final_payment_factor = line.final_payment_factor if line.final_payment_factor is not None else 1
+    computed_gross = round_half_away_from_zero(line.unit_price * quantity * final_payment_factor)
+    gross_amount = line.override_total if line.override_total is not None else computed_gross
 
     if line.discount_amount is not None:
         discount_applied = line.discount_amount
@@ -68,6 +85,7 @@ def compute_line_item(line: InvoiceLineItemInput, country: Country) -> InvoiceLi
 
     return InvoiceLineItemComputed(
         **{**line.__dict__, "quantity": quantity},
+        computed_gross=computed_gross,
         gross_amount=gross_amount,
         discount_applied=discount_applied,
         taxable_amount=taxable_amount,

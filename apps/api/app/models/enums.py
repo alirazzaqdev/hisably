@@ -19,6 +19,7 @@ class ItemUnit(str, enum.Enum):
     SQFT = "sqft"
     KG = "kg"
     M = "m"
+    LM = "lm"
     BOX = "box"
     LTR = "ltr"
 
@@ -89,6 +90,24 @@ class StockMovementReason(str, enum.Enum):
     PURCHASE = "purchase"
     ADJUSTMENT = "adjustment"
     OPENING = "opening"
+
+
+class JobWorkStatus(str, enum.Enum):
+    NOT_COMPLETED = "not_completed"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
+class JobTaxInvoiceStatus(str, enum.Enum):
+    NOT_SUBMITTED = "not_submitted"
+    SUBMITTED = "submitted"
+
+
+class JobPaymentStatus(str, enum.Enum):
+    LPO_NOT_RECEIVED = "lpo_not_received"
+    PENDING = "pending"
+    RECEIVED = "received"
+    NOT_RECEIVED = "not_received"
 
 
 class ActivityAction(str, enum.Enum):

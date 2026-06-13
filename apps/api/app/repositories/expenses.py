@@ -1,6 +1,7 @@
 import uuid
+from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.expense import ExpenseEntry
@@ -30,6 +31,9 @@ async def list_paginated(
     tenant_id: uuid.UUID,
     *,
     category: str | None,
+    search: str | None,
+    date_from: date | None,
+    date_to: date | None,
     page: int,
     page_size: int,
 ) -> tuple[list[ExpenseEntry], int]:
@@ -39,6 +43,20 @@ async def list_paginated(
     if category:
         query = query.where(ExpenseEntry.category == category)
         count_query = count_query.where(ExpenseEntry.category == category)
+
+    if search:
+        pattern = f"%{search}%"
+        clause = or_(ExpenseEntry.category.ilike(pattern), ExpenseEntry.notes.ilike(pattern))
+        query = query.where(clause)
+        count_query = count_query.where(clause)
+
+    if date_from:
+        query = query.where(ExpenseEntry.expense_date >= date_from)
+        count_query = count_query.where(ExpenseEntry.expense_date >= date_from)
+
+    if date_to:
+        query = query.where(ExpenseEntry.expense_date <= date_to)
+        count_query = count_query.where(ExpenseEntry.expense_date <= date_to)
 
     total = (await db.execute(count_query)).scalar_one()
 

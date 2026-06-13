@@ -3,14 +3,23 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Plus, Search } from "lucide-react";
+import { AlertTriangle, Package, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { itemCategoriesApi } from "@/lib/api/item-categories";
-import { itemsApi } from "@/lib/api/items";
+import { itemsApi, type Item } from "@/lib/api/items";
 import { cn } from "@/lib/utils";
-import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
+
+function isLowStock(item: Item): boolean {
+  return (
+    item.track_inventory &&
+    item.current_stock !== null &&
+    item.low_stock_threshold !== null &&
+    Number(item.current_stock) <= Number(item.low_stock_threshold)
+  );
+}
 
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
@@ -30,23 +39,26 @@ export default function ItemsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-h1 text-foreground">Items</h1>
-        <div className="flex gap-2">
-          <Button asChild variant="secondary">
-            <Link href="/item-categories">Manage categories</Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link href="/price-lists">Manage price lists</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/items/new">
-              <Plus className="h-4 w-4" />
-              Add item
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Items"
+        description="Products and services you buy or sell."
+        action={
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/item-categories">Manage categories</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/price-lists">Manage price lists</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/items/new">
+                <Plus className="h-4 w-4" />
+                Add item
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-3">
         <div className="relative max-w-sm flex-1">
@@ -68,61 +80,119 @@ export default function ItemsPage() {
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <table className="w-full text-left text-body">
-          <thead className="border-b border-border bg-muted text-body-sm text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">SKU</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Unit</th>
-              <th className="px-4 py-3 text-right font-medium">Sale price</th>
-              <th className="px-4 py-3 font-medium">VAT</th>
-              <th className="px-4 py-3 text-right font-medium">Stock</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <TableStateRow colSpan={7}>Loading…</TableStateRow>}
-            {isError && <TableErrorRow colSpan={7} />}
-            {!isLoading && !isError && data?.items.length === 0 && (
-              <TableStateRow colSpan={7}>No items yet.</TableStateRow>
-            )}
-            {data?.items.map((item) => {
-              const isLowStock =
-                item.track_inventory &&
-                item.current_stock !== null &&
-                item.low_stock_threshold !== null &&
-                Number(item.current_stock) <= Number(item.low_stock_threshold);
-              return (
-                <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                  <td className="px-4 py-3">
-                    <Link href={`/items/${item.id}/edit`} className="font-medium text-foreground hover:text-accent-700">
-                      {item.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{item.sku ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {item.category_id ? categoryNameById.get(item.category_id) ?? "—" : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{item.unit}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{item.sale_price}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{item.vat_category.replace("_", " ")}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {item.track_inventory ? (
-                      <span className={cn("inline-flex items-center gap-1", isLowStock && "font-medium text-red-600")}>
-                        {isLowStock && <AlertTriangle className="h-3.5 w-3.5" />}
-                        {item.current_stock ?? "—"}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
+      {isLoading && <div className="py-12 text-center text-body text-muted-foreground">Loading…</div>}
+
+      {isError && (
+        <div className="py-12 text-center text-body text-danger-500">Something went wrong. Please try again.</div>
+      )}
+
+      {!isLoading && !isError && data?.items.length === 0 && (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
+          <Package className="h-8 w-8 text-muted-foreground" />
+          <div>
+            <p className="text-body font-medium text-foreground">No items yet</p>
+            <p className="text-body-sm text-muted-foreground">Add the products or services you buy or sell.</p>
+          </div>
+          <Button asChild>
+            <Link href="/items/new">
+              <Plus className="h-4 w-4" />
+              Add item
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {!isLoading && !isError && data && data.items.length > 0 && (
+        <>
+          {/* Desktop / tablet table */}
+          <div className="hidden overflow-hidden rounded-lg border border-border bg-surface md:block">
+            <table className="w-full text-left text-body">
+              <thead className="border-b border-border bg-muted text-body-sm text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">SKU</th>
+                  <th className="px-4 py-3 font-medium">Category</th>
+                  <th className="px-4 py-3 font-medium">Unit</th>
+                  <th className="px-4 py-3 text-right font-medium">Sale price</th>
+                  <th className="px-4 py-3 font-medium">VAT</th>
+                  <th className="px-4 py-3 text-right font-medium">Stock</th>
                 </tr>
+              </thead>
+              <tbody>
+                {data.items.map((item) => {
+                  const lowStock = isLowStock(item);
+                  return (
+                    <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/items/${item.id}/edit`}
+                          className="font-medium text-foreground hover:text-accent-700"
+                        >
+                          {item.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.sku ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {item.category_id ? categoryNameById.get(item.category_id) ?? "—" : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.unit}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{item.sale_price}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.vat_category.replace("_", " ")}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {item.track_inventory ? (
+                          <span
+                            className={cn("inline-flex items-center gap-1", lowStock && "font-medium text-danger-500")}
+                          >
+                            {lowStock && <AlertTriangle className="h-3.5 w-3.5" />}
+                            {item.current_stock ?? "—"}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {data.items.map((item) => {
+              const lowStock = isLowStock(item);
+              return (
+                <Link
+                  key={item.id}
+                  href={`/items/${item.id}/edit`}
+                  className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-foreground">{item.name}</p>
+                      <p className="text-body-sm text-muted-foreground">
+                        {item.sku ?? "No SKU"} · {item.category_id ? categoryNameById.get(item.category_id) ?? "—" : "Uncategorized"}
+                      </p>
+                    </div>
+                    <p className="text-body font-medium tabular-nums text-foreground">{item.sale_price}</p>
+                  </div>
+                  <div className="flex items-center justify-between text-body-sm text-muted-foreground">
+                    <span>
+                      {item.unit} · {item.vat_category.replace("_", " ")}
+                    </span>
+                    {item.track_inventory && (
+                      <span className={cn("inline-flex items-center gap-1 tabular-nums", lowStock && "font-medium text-danger-500")}>
+                        {lowStock && <AlertTriangle className="h-3.5 w-3.5" />}
+                        Stock: {item.current_stock ?? "—"}
+                      </span>
+                    )}
+                  </div>
+                </Link>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

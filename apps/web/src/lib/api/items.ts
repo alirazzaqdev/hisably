@@ -1,7 +1,7 @@
 import { apiRequest } from "@/lib/api-client";
 import type { Page } from "@/lib/api/types";
 
-export type ItemUnit = "pcs" | "sqm" | "sqft" | "kg" | "m" | "box" | "ltr";
+export type ItemUnit = "pcs" | "sqm" | "lm" | "sqft" | "kg" | "m" | "box" | "ltr";
 export type VatCategory = "standard" | "zero_rated" | "exempt";
 
 export interface Item {

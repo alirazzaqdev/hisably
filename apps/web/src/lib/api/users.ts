@@ -7,6 +7,7 @@ export const PERMISSION_MODULES = [
   { key: "payments", label: "Payments & accounts" },
   { key: "expenses", label: "Expenses" },
   { key: "reports", label: "Reports" },
+  { key: "job_register", label: "Job Register" },
 ] as const;
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number]["key"];

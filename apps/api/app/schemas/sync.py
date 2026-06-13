@@ -8,9 +8,10 @@ from app.schemas.customer import CustomerOut
 from app.schemas.expense import ExpenseOut
 from app.schemas.invoice import InvoiceOut
 from app.schemas.item import ItemOut
+from app.schemas.job_register import JobReceiptOut, JobRegisterRowOut
 from app.schemas.payment import PaymentOut
 
-EntityType = Literal["customer", "item", "expense", "invoice", "payment"]
+EntityType = Literal["customer", "item", "expense", "invoice", "payment", "job_register_row", "job_receipt"]
 
 
 class SyncMutation(BaseModel):
@@ -43,3 +44,5 @@ class SyncPullResponse(BaseModel):
     expenses: list[ExpenseOut]
     invoices: list[InvoiceOut]
     payments: list[PaymentOut]
+    job_register_rows: list[JobRegisterRowOut]
+    job_receipts: list[JobReceiptOut]

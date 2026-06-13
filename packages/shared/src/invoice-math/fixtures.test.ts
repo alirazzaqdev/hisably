@@ -9,15 +9,19 @@ interface FixtureCase {
   input: {
     description: string;
     quantity?: number;
-    width?: number;
-    height?: number;
+    width_mm?: number;
+    height_mm?: number;
+    length_mm?: number;
     unit_price: number;
     discount_percent?: number;
     discount_amount?: number;
+    override_total?: number;
+    final_payment_factor?: number;
     vat_category: VatCategory;
   };
   expected: {
     quantity: number;
+    computed_gross?: number;
     gross_amount: number;
     discount_applied: number;
     taxable_amount: number;
@@ -41,17 +45,23 @@ describe("shared invoice-math fixtures (cross-validated with apps/api)", () => {
       const lineInput: InvoiceLineItemInput = {
         description: input.description,
         quantity: input.quantity,
-        width: input.width,
-        height: input.height,
+        widthMm: input.width_mm,
+        heightMm: input.height_mm,
+        lengthMm: input.length_mm,
         unitPrice: input.unit_price,
         discountPercent: input.discount_percent,
         discountAmount: input.discount_amount,
+        overrideTotal: input.override_total,
+        finalPaymentFactor: input.final_payment_factor,
         vatCategory: input.vat_category,
       };
 
       const result = computeLineItem(lineInput, fixtures.country);
 
-      expect(result.quantity).toBe(expected.quantity);
+      expect(result.quantity).toBeCloseTo(expected.quantity, 6);
+      if (expected.computed_gross !== undefined) {
+        expect(result.computedGross).toBe(expected.computed_gross);
+      }
       expect(result.grossAmount).toBe(expected.gross_amount);
       expect(result.discountApplied).toBe(expected.discount_applied);
       expect(result.taxableAmount).toBe(expected.taxable_amount);

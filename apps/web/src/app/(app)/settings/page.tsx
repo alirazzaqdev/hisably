@@ -14,6 +14,7 @@ import type { VatCategory } from "@/lib/api/onboarding";
 import { tenantsApi, type TenantUpdateInput } from "@/lib/api/tenants";
 import { usersApi } from "@/lib/api/users";
 import { BackupSection } from "./backup-section";
+import { BrandingSection } from "./branding-section";
 import { TeamSection } from "./team-section";
 
 const VAT_CATEGORIES: { value: VatCategory; label: string }[] = [
@@ -41,7 +42,12 @@ export default function SettingsPage() {
         address: tenant.address ?? "",
         invoice_prefix: tenant.invoice_prefix,
         default_vat_category: tenant.default_vat_category,
-        logo_url: tenant.logo_url ?? "",
+        cheque_payee_name: tenant.cheque_payee_name ?? "",
+        bank_name: tenant.bank_name ?? "",
+        bank_account_number: tenant.bank_account_number ?? "",
+        bank_iban: tenant.bank_iban ?? "",
+        contact_person: tenant.contact_person ?? "",
+        contact_phone: tenant.contact_phone ?? "",
       });
     }
   }, [tenant]);
@@ -114,17 +120,6 @@ export default function SettingsPage() {
               <Input id="address" value={form.address ?? ""} onChange={(e) => update("address", e.target.value)} />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="logo_url">Logo URL</Label>
-              <Input
-                id="logo_url"
-                type="url"
-                placeholder="https://example.com/logo.png"
-                value={form.logo_url ?? ""}
-                onChange={(e) => update("logo_url", e.target.value)}
-              />
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="default_vat_category">Default VAT category</Label>
@@ -164,6 +159,62 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-body font-medium text-foreground">Bank &amp; contact details</Label>
+              <CardDescription>
+                Used on Proforma invoices for payment instructions and contact info. Leave blank to hide.
+              </CardDescription>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cheque_payee_name">Cheque payee name</Label>
+              <Input
+                id="cheque_payee_name"
+                placeholder="Make all cheques payable to..."
+                value={form.cheque_payee_name ?? ""}
+                onChange={(e) => update("cheque_payee_name", e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bank_name">Bank name</Label>
+                <Input id="bank_name" value={form.bank_name ?? ""} onChange={(e) => update("bank_name", e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bank_account_number">Bank account number</Label>
+                <Input
+                  id="bank_account_number"
+                  value={form.bank_account_number ?? ""}
+                  onChange={(e) => update("bank_account_number", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bank_iban">IBAN</Label>
+                <Input id="bank_iban" value={form.bank_iban ?? ""} onChange={(e) => update("bank_iban", e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="contact_person">Contact person</Label>
+                <Input
+                  id="contact_person"
+                  value={form.contact_person ?? ""}
+                  onChange={(e) => update("contact_person", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="contact_phone">Contact phone</Label>
+              <Input
+                id="contact_phone"
+                value={form.contact_phone ?? ""}
+                onChange={(e) => update("contact_phone", e.target.value)}
+              />
+            </div>
+
             {successMessage && <p className="text-body-sm text-success-500">{successMessage}</p>}
             <FormError>{formError}</FormError>
 
@@ -175,6 +226,8 @@ export default function SettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      <BrandingSection />
 
       {user?.role === "owner" && (
         <Card className="max-w-2xl">

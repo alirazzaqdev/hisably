@@ -23,7 +23,8 @@
         "header.site_address",
         "line.width_height_sqm",
         "line.linear_meter",
-        "line.brand_model"
+        "line.brand_model",
+        "module.job_register"
       ]
     },
     {
@@ -35,7 +36,8 @@
         "header.villa_no",
         "header.site_address",
         "line.width_height_sqm",
-        "line.brand_model"
+        "line.brand_model",
+        "module.job_register"
       ]
     },
     {

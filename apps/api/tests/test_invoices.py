@@ -185,6 +185,63 @@ async def test_invoice_share_link_and_public_pdf(client, auth_headers):
     assert bad_resp.status_code == 404
 
 
+async def test_proforma_invoice_layout_and_pdf(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+
+    tenant_resp = await client.patch(
+        "/api/v1/tenants/me",
+        json={
+            "cheque_payee_name": "Acme Trading LLC",
+            "bank_name": "Emirates Bank",
+            "bank_account_number": "1234567890",
+            "bank_iban": "AE000123456789012345678",
+            "contact_person": "John Doe",
+            "contact_phone": "+971500000000",
+        },
+        headers=auth_headers,
+    )
+    assert tenant_resp.status_code == 200
+    tenant = tenant_resp.json()
+    assert tenant["bank_name"] == "Emirates Bank"
+
+    create_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "type": "proforma",
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "lpo_no": "LPO-001",
+            "project_villa_no": "Villa No# 1491",
+            "bill_to_address": "123 Bill St, Dubai",
+            "ship_to_address": "456 Ship St, Dubai",
+            "line_items": [
+                {
+                    "description": "Aluminium frames",
+                    "quantity": "10",
+                    "unit_price": "100.00",
+                    "final_payment_factor": "0.5",
+                    "vat_category": "standard",
+                },
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    invoice = create_resp.json()
+    assert invoice["type"] == "proforma"
+    assert invoice["lpo_no"] == "LPO-001"
+    assert invoice["project_villa_no"] == "Villa No# 1491"
+    assert invoice["bill_to_address"] == "123 Bill St, Dubai"
+    assert invoice["ship_to_address"] == "456 Ship St, Dubai"
+    assert invoice["line_items"][0]["final_payment_factor"] == "0.5"
+    assert invoice["line_items"][0]["line_total"] == "525.00"
+
+    pdf_resp = await client.get(f"/api/v1/invoices/{invoice['id']}/pdf", headers=auth_headers)
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"] == "application/pdf"
+    assert pdf_resp.content[:4] == b"%PDF"
+
+
 async def test_invoice_template_customization(client, auth_headers):
     customer_id = await _create_customer(client, auth_headers)
 

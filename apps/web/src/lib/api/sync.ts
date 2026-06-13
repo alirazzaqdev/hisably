@@ -3,9 +3,17 @@ import type { Customer } from "@/lib/api/customers";
 import type { Expense } from "@/lib/api/expenses";
 import type { Invoice } from "@/lib/api/invoices";
 import type { Item } from "@/lib/api/items";
+import type { JobReceipt, JobRegisterRow } from "@/lib/api/job-register";
 import type { Payment } from "@/lib/api/payments";
 
-export type SyncEntityType = "customer" | "item" | "expense" | "invoice" | "payment";
+export type SyncEntityType =
+  | "customer"
+  | "item"
+  | "expense"
+  | "invoice"
+  | "payment"
+  | "job_register_row"
+  | "job_receipt";
 
 export interface SyncMutation {
   entity_type: SyncEntityType;
@@ -33,6 +41,8 @@ export interface SyncPullResponse {
   expenses: Expense[];
   invoices: Invoice[];
   payments: Payment[];
+  job_register_rows: JobRegisterRow[];
+  job_receipts: JobReceipt[];
 }
 
 export const syncApi = {

@@ -24,9 +24,21 @@ export interface ExpenseInput {
 }
 
 export const expensesApi = {
-  list: (params: { category?: string; page?: number; pageSize?: number } = {}) => {
+  list: (
+    params: {
+      category?: string;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      page?: number;
+      pageSize?: number;
+    } = {}
+  ) => {
     const query = new URLSearchParams();
     if (params.category) query.set("category", params.category);
+    if (params.search) query.set("search", params.search);
+    if (params.dateFrom) query.set("date_from", params.dateFrom);
+    if (params.dateTo) query.set("date_to", params.dateTo);
     if (params.page) query.set("page", String(params.page));
     if (params.pageSize) query.set("page_size", String(params.pageSize));
     const qs = query.toString();

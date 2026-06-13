@@ -14,10 +14,13 @@ def _line_from_fixture(case_input: dict) -> InvoiceLineItemInput:
         description=case_input["description"],
         unit_price=case_input["unit_price"],
         quantity=case_input.get("quantity"),
-        width=case_input.get("width"),
-        height=case_input.get("height"),
+        width_mm=case_input.get("width_mm"),
+        height_mm=case_input.get("height_mm"),
+        length_mm=case_input.get("length_mm"),
         discount_percent=case_input.get("discount_percent"),
         discount_amount=case_input.get("discount_amount"),
+        override_total=case_input.get("override_total"),
+        final_payment_factor=case_input.get("final_payment_factor"),
         vat_category=VatCategory(case_input["vat_category"]),
     )
 
@@ -32,7 +35,9 @@ def test_fixture_cases(line_item_fixtures):
         result = compute_line_item(line, country)
         expected = case["expected"]
 
-        assert result.quantity == expected["quantity"], case["name"]
+        assert result.quantity == pytest.approx(expected["quantity"]), case["name"]
+        if "computed_gross" in expected:
+            assert result.computed_gross == expected["computed_gross"], case["name"]
         assert result.gross_amount == expected["gross_amount"], case["name"]
         assert result.discount_applied == expected["discount_applied"], case["name"]
         assert result.taxable_amount == expected["taxable_amount"], case["name"]

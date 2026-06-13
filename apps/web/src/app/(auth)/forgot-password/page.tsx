@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { AuthCard } from "@/components/ui/auth-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-message";
@@ -38,41 +39,43 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>
-          Enter your email and we&apos;ll send you a code to reset your password.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+    <AuthCard>
+      <Card>
+        <CardHeader>
+          <CardTitle>Reset your password</CardTitle>
+          <CardDescription>
+            Enter your email and we&apos;ll send you a code to reset your password.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-          <FormError>{formError}</FormError>
+            <FormError>{formError}</FormError>
 
-          <Button type="submit" className="mt-2" disabled={forgotPasswordMutation.isPending}>
-            {forgotPasswordMutation.isPending ? "Sending code…" : "Send reset code"}
-          </Button>
-        </form>
-      </CardContent>
+            <Button type="submit" className="mt-2" disabled={forgotPasswordMutation.isPending}>
+              {forgotPasswordMutation.isPending ? "Sending code…" : "Send reset code"}
+            </Button>
+          </form>
+        </CardContent>
 
-      <p className="mt-6 text-center text-body-sm text-muted-foreground">
-        Remembered your password?{" "}
-        <Link href="/login" className="font-medium text-accent-600 hover:text-accent-700">
-          Log in
-        </Link>
-      </p>
-    </Card>
+        <p className="mt-6 text-center text-body-sm text-muted-foreground">
+          Remembered your password?{" "}
+          <Link href="/login" className="font-medium text-accent-600 hover:text-accent-700">
+            Log in
+          </Link>
+        </p>
+      </Card>
+    </AuthCard>
   );
 }

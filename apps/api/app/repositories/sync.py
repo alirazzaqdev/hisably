@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.expense import ExpenseEntry
 from app.models.invoice import Invoice
 from app.models.item import Item
+from app.models.job_register import JobReceipt, JobRegisterRow
 from app.models.party import Customer
 from app.models.payment import Payment
 from app.models.sync import SyncLogEntry
@@ -51,16 +52,26 @@ async def _changed(db: AsyncSession, model, tenant_id: uuid.UUID, since: datetim
 
 async def pull_changes(
     db: AsyncSession, tenant_id: uuid.UUID, since: datetime | None
-) -> tuple[list[Customer], list[Item], list[ExpenseEntry], list[Invoice], list[Payment]]:
+) -> tuple[
+    list[Customer],
+    list[Item],
+    list[ExpenseEntry],
+    list[Invoice],
+    list[Payment],
+    list[JobRegisterRow],
+    list[JobReceipt],
+]:
     customers = await _changed(db, Customer, tenant_id, since)
     items = await _changed(db, Item, tenant_id, since)
     expenses = await _changed(db, ExpenseEntry, tenant_id, since)
     invoices = await _changed(db, Invoice, tenant_id, since)
     payments = await _changed(db, Payment, tenant_id, since)
+    job_register_rows = await _changed(db, JobRegisterRow, tenant_id, since)
+    job_receipts = await _changed(db, JobReceipt, tenant_id, since)
 
     for invoice in invoices:
         invoice.line_items_loaded = await get_line_items(db, invoice.id)
     for payment in payments:
         payment.allocations_loaded = await get_allocations(db, payment.id)
 
-    return customers, items, expenses, invoices, payments
+    return customers, items, expenses, invoices, payments, job_register_rows, job_receipts

@@ -11,12 +11,14 @@ from app.repositories import customers as customers_repo
 from app.repositories import expenses as expenses_repo
 from app.repositories import invoices as invoices_repo
 from app.repositories import items as items_repo
+from app.repositories import job_register as job_register_repo
 from app.repositories import payments as payments_repo
 from app.repositories import sync as sync_repo
 from app.schemas.customer import CustomerCreate, CustomerOut
 from app.schemas.expense import ExpenseCreate, ExpenseOut
 from app.schemas.invoice import InvoiceCreate, InvoiceLineItemOut, InvoiceOut
 from app.schemas.item import ItemCreate, ItemOut
+from app.schemas.job_register import JobReceiptCreate, JobReceiptOut, JobRegisterRowOut, JobRegisterRowCreate
 from app.schemas.payment import PaymentAllocationOut, PaymentCreate, PaymentOut
 from app.schemas.sync import SyncMutationResult, SyncPullResponse, SyncPushRequest, SyncPushResponse
 
@@ -68,6 +70,10 @@ async def push(
                 entity = await invoices_repo.create(db, tenant, InvoiceCreate(**data))
             elif mutation.entity_type == "payment":
                 entity = await payments_repo.create(db, tenant.id, PaymentCreate(**data))
+            elif mutation.entity_type == "job_register_row":
+                entity = await job_register_repo.create_row(db, tenant.id, JobRegisterRowCreate(**data))
+            elif mutation.entity_type == "job_receipt":
+                entity = await job_register_repo.create_receipt(db, tenant.id, JobReceiptCreate(**data))
             else:
                 raise ValueError(f"Unsupported entity type: {mutation.entity_type}")
         except (ValidationError, ValueError) as exc:
@@ -107,7 +113,9 @@ async def pull(
             since = since.astimezone(timezone.utc).replace(tzinfo=None)
         since = since.replace(microsecond=0)
 
-    customers, items, expenses, invoices, payments = await sync_repo.pull_changes(db, tenant.id, since)
+    customers, items, expenses, invoices, payments, job_register_rows, job_receipts = await sync_repo.pull_changes(
+        db, tenant.id, since
+    )
 
     return SyncPullResponse(
         server_time=datetime.now(timezone.utc),
@@ -116,4 +124,6 @@ async def pull(
         expenses=[ExpenseOut.model_validate(e) for e in expenses],
         invoices=[_invoice_to_out(inv) for inv in invoices],
         payments=[_payment_to_out(p) for p in payments],
+        job_register_rows=[JobRegisterRowOut.model_validate(r) for r in job_register_rows],
+        job_receipts=[JobReceiptOut.model_validate(r) for r in job_receipts],
     )

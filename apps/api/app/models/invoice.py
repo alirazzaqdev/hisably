@@ -55,6 +55,11 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
         Enum(InvoiceLanguage, native_enum=False), default=InvoiceLanguage.EN
     )
 
+    lpo_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    project_villa_no: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    bill_to_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ship_to_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     converted_from_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
     public_token: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
 
@@ -72,12 +77,17 @@ class InvoiceLineItem(Base, UUIDPrimaryKeyMixin):
     description_ar: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=1)
-    width: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
-    height: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    width_mm: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    height_mm: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
+    length_mm: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
 
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     discount_percent: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     discount_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+
+    computed_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    override_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    final_payment_factor: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
 
     vat_category: Mapped[VatCategory] = mapped_column(Enum(VatCategory, native_enum=False))
     vat_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)

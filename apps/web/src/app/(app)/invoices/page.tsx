@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { FileText, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
 import { invoicesApi, type InvoiceType } from "@/lib/api/invoices";
 import { InvoiceStatusBadge } from "./status-badge";
-import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
 
 const TYPE_LABELS: Record<InvoiceType, string> = {
   tax_invoice: "Tax invoice",
@@ -53,15 +53,17 @@ export default function InvoicesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-h1 text-foreground">Invoices</h1>
-        <Button asChild>
-          <Link href="/invoices/new">
-            <Plus className="h-4 w-4" />
-            New invoice
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Invoices"
+        action={
+          <Button asChild>
+            <Link href="/invoices/new">
+              <Plus className="h-4 w-4" />
+              New invoice
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative max-w-sm flex-1">
@@ -86,48 +88,98 @@ export default function InvoicesPage() {
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface">
-        <table className="w-full text-left text-body">
-          <thead className="border-b border-border bg-muted text-body-sm text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Invoice #</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Party</th>
-              <th className="px-4 py-3 font-medium">Issue date</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 text-right font-medium">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <TableStateRow colSpan={6}>Loading…</TableStateRow>}
-            {isError && <TableErrorRow colSpan={6} />}
-            {!isLoading && !isError && data?.items.length === 0 && (
-              <TableStateRow colSpan={6}>No invoices yet.</TableStateRow>
-            )}
-            {data?.items.map((invoice) => (
-              <tr key={invoice.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/invoices/${invoice.id}`}
-                    className="font-medium text-foreground hover:text-accent-700"
-                  >
-                    {invoice.invoice_number ?? invoice.draft_number}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{TYPE_LABELS[invoice.type]}</td>
-                <td className="px-4 py-3 text-muted-foreground">{partyName(invoice)}</td>
-                <td className="px-4 py-3 text-muted-foreground">{invoice.issue_date}</td>
-                <td className="px-4 py-3">
+      {isLoading && <div className="py-12 text-center text-body text-muted-foreground">Loading…</div>}
+      {isError && (
+        <div className="py-12 text-center text-body text-danger-500">Something went wrong. Please try again.</div>
+      )}
+
+      {!isLoading && !isError && data?.items.length === 0 && (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground" />
+          <div>
+            <p className="text-body font-medium text-foreground">No invoices yet</p>
+            <p className="text-body-sm text-muted-foreground">
+              {search || typeFilter
+                ? "No invoices match your search or filter."
+                : "Create your first invoice to get started."}
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/invoices/new">
+              <Plus className="h-4 w-4" />
+              New invoice
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {!isLoading && !isError && data && data.items.length > 0 && (
+        <>
+          <div className="hidden overflow-hidden rounded-lg border border-border bg-surface md:block">
+            <table className="w-full text-left text-body">
+              <thead className="border-b border-border bg-muted text-body-sm text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Invoice #</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Party</th>
+                  <th className="px-4 py-3 font-medium">Issue date</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((invoice) => (
+                  <tr key={invoice.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="font-medium text-foreground hover:text-accent-700"
+                      >
+                        {invoice.invoice_number ?? invoice.draft_number}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{TYPE_LABELS[invoice.type]}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{partyName(invoice)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{invoice.issue_date}</td>
+                    <td className="px-4 py-3">
+                      <InvoiceStatusBadge status={invoice.status} />
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {invoice.currency} {invoice.grand_total}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-3 md:hidden">
+            {data.items.map((invoice) => (
+              <Link
+                key={invoice.id}
+                href={`/invoices/${invoice.id}`}
+                className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-foreground">{invoice.invoice_number ?? invoice.draft_number}</p>
+                    <p className="text-body-sm text-muted-foreground">
+                      {TYPE_LABELS[invoice.type]} · {partyName(invoice)}
+                    </p>
+                  </div>
                   <InvoiceStatusBadge status={invoice.status} />
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  {invoice.currency} {invoice.grand_total}
-                </td>
-              </tr>
+                </div>
+                <div className="flex items-center justify-between border-t border-border pt-2 text-body-sm">
+                  <span className="text-muted-foreground">{invoice.issue_date}</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {invoice.currency} {invoice.grand_total}
+                  </span>
+                </div>
+              </Link>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

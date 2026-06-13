@@ -16,11 +16,15 @@ export interface InvoiceLineItem {
   description: string;
   description_ar: string | null;
   quantity: string;
-  width: string | null;
-  height: string | null;
+  width_mm: string | null;
+  height_mm: string | null;
+  length_mm: string | null;
   unit_price: string;
   discount_percent: string | null;
   discount_amount: string | null;
+  computed_total: string | null;
+  override_total: string | null;
+  final_payment_factor: string | null;
   vat_category: VatCategory;
   vat_rate: string;
   vat_amount: string;
@@ -32,11 +36,14 @@ export interface InvoiceLineItemInput {
   description: string;
   description_ar?: string | null;
   quantity?: string | null;
-  width?: string | null;
-  height?: string | null;
+  width_mm?: string | null;
+  height_mm?: string | null;
+  length_mm?: string | null;
   unit_price: string;
   discount_percent?: string | null;
   discount_amount?: string | null;
+  override_total?: string | null;
+  final_payment_factor?: string | null;
   vat_category?: VatCategory;
 }
 
@@ -62,6 +69,10 @@ export interface Invoice {
   pdf_template: PdfTemplate;
   accent_color: string | null;
   language: InvoiceLanguage;
+  lpo_no: string | null;
+  project_villa_no: string | null;
+  bill_to_address: string | null;
+  ship_to_address: string | null;
   void_reason: string | null;
   converted_from_id: string | null;
   public_token: string | null;
@@ -82,6 +93,10 @@ export interface InvoiceInput {
   pdf_template?: PdfTemplate;
   accent_color?: string | null;
   language?: InvoiceLanguage;
+  lpo_no?: string | null;
+  project_villa_no?: string | null;
+  bill_to_address?: string | null;
+  ship_to_address?: string | null;
   line_items: InvoiceLineItemInput[];
   converted_from_id?: string | null;
 }

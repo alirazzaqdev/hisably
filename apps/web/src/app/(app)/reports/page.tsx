@@ -30,6 +30,17 @@ const CHART_COLORS = {
   topItems: "#3b82f6",
   outputVat: "#10b981",
   inputVat: "#f59e0b",
+  expenseCategories: ["#0d9488", "#3b82f6", "#f59e0b", "#8b5cf6", "#fb7185", "#10b981", "#94a3b8", "#f472b6"],
+  assets: ["#0d9488", "#3b82f6", "#f59e0b"],
+  liabilitiesEquity: ["#fb7185", "#8b5cf6"],
+  plBridge: {
+    revenue: "#0d9488",
+    cogs: "#f59e0b",
+    grossProfit: "#3b82f6",
+    expenses: "#fb7185",
+    netProfitPositive: "#10b981",
+    netProfitNegative: "#ef4444",
+  },
 };
 
 const TOOLTIP_STYLE = {
@@ -57,6 +68,8 @@ export default function ReportsPage() {
   const { data: topItems } = useQuery({ queryKey: ["reports", "top-items"], queryFn: () => reportsApi.topItems(5) });
   const { data: aging } = useQuery({ queryKey: ["reports", "aging"], queryFn: reportsApi.receivablesAging });
   const { data: vat } = useQuery({ queryKey: ["reports", "vat-summary"], queryFn: () => reportsApi.vatSummary() });
+  const { data: profitLoss } = useQuery({ queryKey: ["reports", "profit-loss"], queryFn: () => reportsApi.profitLoss() });
+  const { data: balanceSheet } = useQuery({ queryKey: ["reports", "balance-sheet"], queryFn: reportsApi.balanceSheet });
 
   const currency = tenant?.currency ?? "AED";
 
@@ -89,6 +102,44 @@ export default function ReportsPage() {
     { name: "Output VAT", value: outputVat },
     { name: "Input VAT", value: inputVat },
   ].filter((d) => d.value > 0);
+
+  const expenseCategoryData = (profitLoss?.expenses_by_category ?? [])
+    .map((e) => ({ name: e.category, value: Number(e.amount) }))
+    .filter((e) => e.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const expenseCategoryTotal = expenseCategoryData.reduce((sum, e) => sum + e.value, 0);
+
+  const netProfit = Number(profitLoss?.net_profit ?? 0);
+  const plBridgeData = profitLoss
+    ? [
+        { name: "Net revenue", value: Number(profitLoss.net_revenue), fill: CHART_COLORS.plBridge.revenue },
+        { name: "Cost of goods sold", value: Number(profitLoss.cost_of_goods_sold), fill: CHART_COLORS.plBridge.cogs },
+        { name: "Gross profit", value: Number(profitLoss.gross_profit), fill: CHART_COLORS.plBridge.grossProfit },
+        { name: "Expenses", value: Number(profitLoss.total_expenses), fill: CHART_COLORS.plBridge.expenses },
+        {
+          name: "Net profit",
+          value: netProfit,
+          fill: netProfit >= 0 ? CHART_COLORS.plBridge.netProfitPositive : CHART_COLORS.plBridge.netProfitNegative,
+        },
+      ]
+    : [];
+  const hasPlData = plBridgeData.some((d) => d.value !== 0);
+
+  const assetsData = balanceSheet
+    ? [
+        { name: "Cash & bank", value: Number(balanceSheet.cash_and_bank) },
+        { name: "Receivables", value: Number(balanceSheet.accounts_receivable) },
+        { name: "Inventory", value: Number(balanceSheet.inventory_value) },
+      ].filter((d) => d.value > 0)
+    : [];
+  const totalAssets = Number(balanceSheet?.total_assets ?? 0);
+
+  const liabilitiesEquityData = balanceSheet
+    ? [
+        { name: "Liabilities", value: Number(balanceSheet.total_liabilities) },
+        { name: "Equity", value: Number(balanceSheet.equity) },
+      ].filter((d) => d.value !== 0)
+    : [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -400,6 +451,196 @@ export default function ReportsPage() {
                 <span className="tabular-nums">
                   {currency} {vat?.net_vat_due ?? "—"}
                 </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Expense breakdown</CardTitle>
+            <CardDescription>All-time expenses by category.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {expenseCategoryData.length === 0 ? (
+              <ChartEmptyState label="No expenses recorded yet." />
+            ) : (
+              <div className="flex flex-col items-center gap-4 sm:flex-row">
+                <div className="relative h-[220px] w-[220px] shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={expenseCategoryData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={95}
+                        paddingAngle={2}
+                        stroke="var(--color-surface)"
+                        strokeWidth={2}
+                      >
+                        {expenseCategoryData.map((_, index) => (
+                          <Cell key={index} fill={CHART_COLORS.expenseCategories[index % CHART_COLORS.expenseCategories.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => `${currency} ${value.toLocaleString()}`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-caption text-muted-foreground">Total</span>
+                    <span className="text-h3 text-foreground">
+                      {currency} {expenseCategoryTotal.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex max-h-[220px] flex-1 flex-col gap-2 overflow-y-auto">
+                  {expenseCategoryData.map((bucket, index) => (
+                    <div key={bucket.name} className="flex items-center justify-between text-body-sm">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ background: CHART_COLORS.expenseCategories[index % CHART_COLORS.expenseCategories.length] }}
+                        />
+                        <span className="truncate">{bucket.name}</span>
+                      </span>
+                      <span className="tabular-nums font-medium text-foreground">
+                        {currency} {bucket.value.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Profit &amp; loss bridge</CardTitle>
+            <CardDescription>All-time revenue to net profit.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!hasPlData ? (
+              <ChartEmptyState label="No data yet." />
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={plBridgeData} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={120}
+                    tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => `${currency} ${value.toLocaleString()}`} />
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
+                    {plBridgeData.map((entry, index) => (
+                      <Cell key={index} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Balance sheet snapshot</CardTitle>
+          <CardDescription>Assets, liabilities, and equity at a glance.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="flex flex-col items-center gap-4 sm:flex-row">
+              <div className="relative h-[200px] w-[200px] shrink-0">
+                {assetsData.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-center text-body-sm text-muted-foreground">
+                    No assets recorded yet.
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={assetsData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2} stroke="var(--color-surface)" strokeWidth={2}>
+                          {assetsData.map((_, index) => (
+                            <Cell key={index} fill={CHART_COLORS.assets[index % CHART_COLORS.assets.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => `${currency} ${value.toLocaleString()}`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-caption text-muted-foreground">Total assets</span>
+                      <span className="text-h3 text-foreground">
+                        {currency} {totalAssets.toLocaleString()}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-2 text-body-sm">
+                {assetsData.map((bucket, index) => (
+                  <div key={bucket.name} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS.assets[index % CHART_COLORS.assets.length] }} />
+                      {bucket.name}
+                    </span>
+                    <span className="tabular-nums">
+                      {currency} {bucket.value.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-4 sm:flex-row">
+              <div className="relative h-[200px] w-[200px] shrink-0">
+                {liabilitiesEquityData.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-center text-body-sm text-muted-foreground">
+                    No data yet.
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={liabilitiesEquityData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2} stroke="var(--color-surface)" strokeWidth={2}>
+                          {liabilitiesEquityData.map((_, index) => (
+                            <Cell key={index} fill={CHART_COLORS.liabilitiesEquity[index % CHART_COLORS.liabilitiesEquity.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => `${currency} ${value.toLocaleString()}`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-caption text-muted-foreground">Liabilities + equity</span>
+                      <span className="text-h3 text-foreground">
+                        {currency} {totalAssets.toLocaleString()}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-2 text-body-sm">
+                {liabilitiesEquityData.map((bucket, index) => (
+                  <div key={bucket.name} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ background: CHART_COLORS.liabilitiesEquity[index % CHART_COLORS.liabilitiesEquity.length] }}
+                      />
+                      {bucket.name}
+                    </span>
+                    <span className="tabular-nums">
+                      {currency} {bucket.value.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

@@ -42,22 +42,42 @@ export interface InvoiceLineItemInput {
   itemId?: string;
   description: string;
   descriptionAr?: string;
-  /** Explicit quantity. Ignored if width & height are both provided. */
+  /**
+   * Quantity multiplier. For SQM/LM lines this multiplies the per-unit area
+   * or length (default 1). Ignored as a standalone value when widthMm/heightMm
+   * or lengthMm are provided.
+   */
   quantity?: number;
-  width?: number;
-  height?: number;
+  /** Width in millimeters, for SQM lines. Used with heightMm. */
+  widthMm?: number;
+  /** Height in millimeters, for SQM lines. Used with widthMm. */
+  heightMm?: number;
+  /** Length in millimeters, for LM (linear meter) lines. */
+  lengthMm?: number;
   /** Unit price in minor units. */
   unitPrice: MinorUnits;
   discountPercent?: number;
   /** Discount amount in minor units. Mutually exclusive with discountPercent. */
   discountAmount?: MinorUnits;
+  /** Manual override of the gross (pre-discount/VAT) amount, in minor units. */
+  overrideTotal?: MinorUnits;
+  /**
+   * Milestone-billing multiplier applied on top of quantity * unitPrice
+   * (default 1 = bill the full amount). E.g. 0.5 = bill 50%.
+   */
+  finalPaymentFactor?: number;
   vatCategory: VatCategory;
 }
 
 export interface InvoiceLineItemComputed extends InvoiceLineItemInput {
-  /** Resolved quantity (= width * height for area-based lines). */
+  /**
+   * Resolved quantity. For SQM lines = (widthMm/1000) * (heightMm/1000) * quantity.
+   * For LM lines = (lengthMm/1000) * quantity. Otherwise = quantity (default 1).
+   */
   quantity: number;
-  /** unitPrice * quantity, before discount, in minor units. */
+  /** unitPrice * quantity, before any override, in minor units. */
+  computedGross: MinorUnits;
+  /** overrideTotal if set, else computedGross. */
   grossAmount: MinorUnits;
   /** Discount applied to this line, in minor units. */
   discountApplied: MinorUnits;

@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 @dataclass(frozen=True)
 class FieldDefinition:
     id: str
-    scope: str  # "header" | "line"
+    scope: str  # "header" | "line" | "module"
     label_en: str
     label_ar: str
     data_type: str  # "string" | "number" | "boolean" | "enum"
@@ -53,6 +53,9 @@ FIELD_CATALOG: list[FieldDefinition] = [
     FieldDefinition("line.parts_labour_split", "line", "Parts vs Labour", "قطع غيار / أجرة", "enum", ["parts", "labour"]),
     FieldDefinition("line.hourly_rate", "line", "Hours x Rate", "الساعات × السعر", "boolean"),
     FieldDefinition("line.warranty_months", "line", "Warranty (months)", "الضمان (أشهر)", "number"),
+
+    # Module-scope fields (toggle whole optional modules on/off)
+    FieldDefinition("module.job_register", "module", "Job / Project Register", "سجل المشاريع", "boolean"),
 ]
 
 INDUSTRY_PRESETS: list[IndustryPreset] = [
@@ -68,21 +71,21 @@ INDUSTRY_PRESETS: list[IndustryPreset] = [
         label_en="Glass & Aluminium / Fit-out Contracting",
         label_ar="زجاج وألمنيوم / تشطيبات",
         description="Area and linear-meter pricing, LPO/Villa references for contracting work.",
-        enabled_fields=["header.lpo_no", "header.villa_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.brand_model"],
+        enabled_fields=["header.lpo_no", "header.villa_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.brand_model", "module.job_register"],
     ),
     IndustryPreset(
         key="construction_civil",
         label_en="Construction / Civil",
         label_ar="إنشاءات / مدنية",
         description="BOQ-style items with area/linear units and parts vs labour split.",
-        enabled_fields=["header.lpo_no", "header.project_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.parts_labour_split"],
+        enabled_fields=["header.lpo_no", "header.project_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.parts_labour_split", "module.job_register"],
     ),
     IndustryPreset(
         key="solar_renewable",
         label_en="Solar / Renewable",
         label_ar="الطاقة الشمسية / المتجددة",
         description="System capacity, component lines and warranty for solar installs.",
-        enabled_fields=["header.lpo_no", "header.project_no", "header.site_address", "header.warranty_months", "line.capacity_kw", "line.brand_model", "line.warranty_months"],
+        enabled_fields=["header.lpo_no", "header.project_no", "header.site_address", "header.warranty_months", "line.capacity_kw", "line.brand_model", "line.warranty_months", "module.job_register"],
     ),
     IndustryPreset(
         key="electronics_mobile",
@@ -96,7 +99,7 @@ INDUSTRY_PRESETS: list[IndustryPreset] = [
         label_en="Automotive / Garage",
         label_ar="السيارات / الورشة",
         description="Vehicle details with parts vs labour split and hourly billing.",
-        enabled_fields=["header.vehicle_plate", "header.vehicle_make_model", "line.parts_labour_split", "line.hourly_rate"],
+        enabled_fields=["header.vehicle_plate", "header.vehicle_make_model", "line.parts_labour_split", "line.hourly_rate", "module.job_register"],
     ),
     IndustryPreset(
         key="services_freelance",

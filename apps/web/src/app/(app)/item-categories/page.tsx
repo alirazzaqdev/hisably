@@ -1,13 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { ApiError } from "@/lib/api-client";
 import { itemCategoriesApi } from "@/lib/api/item-categories";
 import { TableErrorRow, TableStateRow } from "@/components/ui/table-state";
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError && typeof error.detail === "string") return error.detail;
+  return fallback;
+}
 
 export default function ItemCategoriesPage() {
   const queryClient = useQueryClient();
@@ -21,7 +30,7 @@ export default function ItemCategoriesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => itemCategoriesApi.create({ name }),
+    mutationFn: () => itemCategoriesApi.create({ name: name.trim() }),
     onSuccess: () => {
       setName("");
       queryClient.invalidateQueries({ queryKey: ["item-categories"] });
@@ -59,26 +68,49 @@ export default function ItemCategoriesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-h1 text-foreground">Item categories</h1>
+      <PageHeader
+        title="Item categories"
+        description="Group items so you can filter and report on them."
+        action={
+          <Button asChild variant="secondary">
+            <Link href="/items">
+              <ArrowLeft className="h-4 w-4" />
+              Back to items
+            </Link>
+          </Button>
+        }
+      />
 
       <Card className="max-w-md">
         <CardHeader>
           <CardTitle>Add category</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="flex gap-2" onSubmit={handleSubmit}>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Glass, Aluminium, Hardware"
-            />
-            <Button type="submit" disabled={createMutation.isPending}>
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
+          <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
+            <div className="flex gap-2">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Glass, Aluminium, Hardware"
+              />
+              <Button type="submit" disabled={createMutation.isPending || !name.trim()}>
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
+            {createMutation.isError && (
+              <FormError>{errorMessage(createMutation.error, "Couldn't add this category. Try again.")}</FormError>
+            )}
           </form>
         </CardContent>
       </Card>
+
+      {updateMutation.isError && (
+        <FormError>{errorMessage(updateMutation.error, "Couldn't rename this category. Try again.")}</FormError>
+      )}
+      {deleteMutation.isError && (
+        <FormError>{errorMessage(deleteMutation.error, "Couldn't delete this category. Try again.")}</FormError>
+      )}
 
       <div className="overflow-hidden rounded-lg border border-border bg-surface">
         <table className="w-full text-left text-body">

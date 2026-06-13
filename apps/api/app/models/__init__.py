@@ -9,6 +9,7 @@ from app.models.expense import ExpenseEntry
 from app.models.firm_membership import FirmMembership
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
 from app.models.item import Item
+from app.models.job_register import JobReceipt, JobRegisterRow
 from app.models.item_category import ItemCategory
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment, PaymentAllocation
@@ -43,4 +44,6 @@ __all__ = [
     "SyncLogEntry",
     "RefreshToken",
     "FirmMembership",
+    "JobRegisterRow",
+    "JobReceipt",
 ]

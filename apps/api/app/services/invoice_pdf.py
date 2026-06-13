@@ -1,5 +1,6 @@
 import io
 import re
+from decimal import Decimal
 from pathlib import Path
 
 import arabic_reshaper
@@ -14,7 +15,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from app.models.enums import PdfTemplate
+from app.models.enums import InvoiceType, PdfTemplate
 from app.models.invoice import Invoice
 from app.models.party import Customer
 from app.models.tenant import Tenant
@@ -27,25 +28,40 @@ DEFAULT_ACCENT_COLORS = {
 
 LABELS = {
     "bill_to": ("Bill To", "إلى"),
+    "ship_to": ("Ship To", "الشحن إلى"),
     "description": ("Description", "الوصف"),
     "qty": ("Qty", "الكمية"),
+    "size_lm": ("Size / LM", "القياس"),
     "unit_price": ("Unit price", "سعر الوحدة"),
     "vat": ("VAT", "ضريبة"),
     "total": ("Total", "الإجمالي"),
+    "final_payment": ("Final Payment", "الدفعة النهائية"),
+    "rate": ("Rate", "السعر"),
     "subtotal": ("Subtotal", "المجموع الفرعي"),
     "discount": ("Discount", "الخصم"),
     "vat_total": ("VAT total", "إجمالي الضريبة"),
     "grand_total": ("Grand total", "الإجمالي الكلي"),
+    "total_amount": ("Total Amount", "المبلغ الإجمالي"),
+    "payable_amount": ("Payable Amount", "المبلغ المستحق"),
     "notes": ("Notes", "ملاحظات"),
     "terms": ("Terms & Conditions", "الشروط والأحكام"),
     "tax_invoice": ("Tax Invoice", "فاتورة ضريبية"),
     "invoice": ("Invoice", "فاتورة"),
+    "proforma_invoice": ("Proforma Invoice", "فاتورة مبدئية"),
     "invoice_no": ("Invoice #", "رقم الفاتورة"),
     "issue_date": ("Issue date", "تاريخ الإصدار"),
     "due_date": ("Due date", "تاريخ الاستحقاق"),
     "status": ("Status", "الحالة"),
     "thank_you": ("Thank you for your business.", "شكراً لتعاملكم معنا."),
     "trn": ("TRN", "الرقم الضريبي"),
+    "lpo_no": ("LPO #", "رقم أمر الشراء"),
+    "villa_no": ("Villa / Project No", "رقم الفيلا / المشروع"),
+    "make_cheques_payable": ("Make all cheques payable to", "يتم سداد جميع الشيكات لـ"),
+    "bank_name": ("Bank Name", "اسم البنك"),
+    "bank_account": ("Account Number", "رقم الحساب"),
+    "iban": ("IBAN", "آيبان"),
+    "contact": ("Contact", "التواصل"),
+    "authorized_signatory": ("Authorized Signatory", "التوقيع المعتمد"),
 }
 
 STATUS_LABELS = {
@@ -145,6 +161,7 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
     accent_color = colors.HexColor(invoice.accent_color or DEFAULT_ACCENT_COLORS.get(template, "#0f766e"))
     language = invoice.language
     is_arabic = _is_arabic_only(language)
+    is_proforma = invoice.type == InvoiceType.PROFORMA
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -194,7 +211,12 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         alignment=TA_CENTER,
     )
 
-    label = _label("tax_invoice", language) if tenant.vat_registered else _label("invoice", language)
+    if is_proforma:
+        label = _label("proforma_invoice", language)
+    elif tenant.vat_registered:
+        label = _label("tax_invoice", language)
+    else:
+        label = _label("invoice", language)
     if invoice.status.value == "void":
         label = f"VOID {label}" if not is_arabic else f"{label} - VOID"
 
@@ -274,7 +296,20 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
     elements.append(Spacer(1, 4 * mm))
     elements.append(HRFlowable(width="100%", thickness=1.5, color=accent_color, spaceAfter=6 * mm))
 
-    if customer is not None:
+    if is_proforma:
+        bill_to_text = _rtl(invoice.bill_to_address).replace("\n", "<br/>") if invoice.bill_to_address else (
+            _customer_details(customer, language) if customer is not None else None
+        )
+        if bill_to_text:
+            elements.append(Paragraph(_label("bill_to", language), heading_style))
+            elements.append(Paragraph(bill_to_text, normal))
+            elements.append(Spacer(1, 4 * mm))
+        if invoice.ship_to_address and invoice.ship_to_address != invoice.bill_to_address:
+            elements.append(Paragraph(_label("ship_to", language), heading_style))
+            elements.append(Paragraph(_rtl(invoice.ship_to_address).replace("\n", "<br/>"), normal))
+            elements.append(Spacer(1, 4 * mm))
+        elements.append(Spacer(1, 4 * mm))
+    elif customer is not None:
         elements.append(Paragraph(_label("bill_to", language), heading_style))
         elements.append(Paragraph(_customer_details(customer, language), normal))
         elements.append(Spacer(1, 8 * mm))
@@ -295,33 +330,73 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
             ),
         )
 
-    headers = [
-        ("#", "CENTER"),
-        (_label("description", language), "LEFT"),
-        (_label("qty", language), "RIGHT"),
-        (_label("unit_price", language), "RIGHT"),
-        (_label("vat", language), "RIGHT"),
-        (_label("total", language), "RIGHT"),
-    ]
-    col_widths_items = [10 * mm, 80 * mm, 20 * mm, 25 * mm, 15 * mm, 25 * mm]
+    size_header_cols: tuple[int, int] | None = None
 
-    body_rows_raw = []
-    for idx, line in enumerate(line_items, start=1):
-        body_rows_raw.append(
-            [
-                (str(idx), "CENTER"),
-                (_rtl(line.description), "LEFT"),
-                (_format_decimal(line.quantity), "RIGHT"),
-                (f"{line.unit_price:.2f}", "RIGHT"),
-                (f"{line.vat_rate:.0f}%", "RIGHT"),
-                (f"{line.line_total:.2f}", "RIGHT"),
-            ]
-        )
+    if is_proforma:
+        headers = [
+            ("#", "CENTER"),
+            (_label("description", language), "LEFT"),
+            (_label("qty", language), "RIGHT"),
+            (_label("final_payment", language), "RIGHT"),
+            (_label("rate", language), "RIGHT"),
+            (_label("total", language), "RIGHT"),
+        ]
+        col_widths_items = [10 * mm, 78 * mm, 20 * mm, 24 * mm, 18 * mm, 20 * mm]
+
+        body_rows_raw = []
+        for idx, line in enumerate(line_items, start=1):
+            final_payment = line.final_payment_factor if line.final_payment_factor is not None else Decimal(1)
+            body_rows_raw.append(
+                [
+                    (str(idx), "CENTER"),
+                    (_rtl(line.description), "LEFT"),
+                    (_format_decimal(line.quantity), "RIGHT"),
+                    (_format_decimal(final_payment), "RIGHT"),
+                    (f"{line.unit_price:.2f}", "RIGHT"),
+                    (f"{line.line_total:.2f}", "RIGHT"),
+                ]
+            )
+    else:
+        headers = [
+            ("#", "CENTER"),
+            (_label("description", language), "LEFT"),
+            (_label("size_lm", language), "CENTER"),
+            ("", "CENTER"),
+            (_label("qty", language), "RIGHT"),
+            (_label("unit_price", language), "RIGHT"),
+            (_label("vat", language), "RIGHT"),
+            (_label("total", language), "RIGHT"),
+        ]
+        col_widths_items = [10 * mm, 64 * mm, 12 * mm, 12 * mm, 16 * mm, 22 * mm, 12 * mm, 22 * mm]
+        size_header_cols = (2, 3)
+
+        body_rows_raw = []
+        for idx, line in enumerate(line_items, start=1):
+            if line.width_mm is not None and line.height_mm is not None:
+                size_cols = (_format_decimal(line.width_mm), _format_decimal(line.height_mm))
+            elif line.length_mm is not None:
+                size_cols = (_format_decimal(line.length_mm), "")
+            else:
+                size_cols = ("", "")
+            body_rows_raw.append(
+                [
+                    (str(idx), "CENTER"),
+                    (_rtl(line.description), "LEFT"),
+                    (size_cols[0], "CENTER"),
+                    (size_cols[1], "CENTER"),
+                    (_format_decimal(line.quantity), "RIGHT"),
+                    (f"{line.unit_price:.2f}", "RIGHT"),
+                    (f"{line.vat_rate:.0f}%", "RIGHT"),
+                    (f"{line.line_total:.2f}", "RIGHT"),
+                ]
+            )
 
     if is_arabic:
         headers = headers[::-1]
         col_widths_items = col_widths_items[::-1]
         body_rows_raw = [row[::-1] for row in body_rows_raw]
+        if size_header_cols is not None:
+            size_header_cols = (len(headers) - 1 - size_header_cols[1], len(headers) - 1 - size_header_cols[0])
         # The description column now sits second-to-last; align it for RTL reading.
         headers = [(text, "RIGHT" if align == "LEFT" else align) for text, align in headers]
         body_rows_raw = [
@@ -342,6 +417,8 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]
+    if size_header_cols is not None:
+        items_table_style.append(("SPAN", (size_header_cols[0], 0), (size_header_cols[1], 0)))
     if template == PdfTemplate.CLASSIC:
         items_table_style.append(("BOX", (0, 0), (-1, -1), 1, accent_color))
     items_table.setStyle(TableStyle(items_table_style))
@@ -349,12 +426,22 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
     elements.append(Spacer(1, 6 * mm))
 
     currency = invoice.currency
-    totals_rows = [
-        (_label("subtotal", language), f"{currency} {invoice.subtotal:.2f}", False),
-        (_label("discount", language), f"{currency} {invoice.discount_total:.2f}", False),
-        (_label("vat_total", language), f"{currency} {invoice.vat_total:.2f}", False),
-        (_label("grand_total", language), f"{currency} {invoice.grand_total:.2f}", True),
-    ]
+    if is_proforma:
+        total_amount = invoice.subtotal - invoice.discount_total
+        totals_rows = [
+            (_label("subtotal", language), f"{currency} {invoice.subtotal:.2f}", False),
+            (_label("discount", language), f"{currency} {invoice.discount_total:.2f}", False),
+            (_label("total_amount", language), f"{currency} {total_amount:.2f}", False),
+            (_label("vat_total", language), f"{currency} {invoice.vat_total:.2f}", False),
+            (_label("payable_amount", language), f"{currency} {invoice.grand_total:.2f}", True),
+        ]
+    else:
+        totals_rows = [
+            (_label("subtotal", language), f"{currency} {invoice.subtotal:.2f}", False),
+            (_label("discount", language), f"{currency} {invoice.discount_total:.2f}", False),
+            (_label("vat_total", language), f"{currency} {invoice.vat_total:.2f}", False),
+            (_label("grand_total", language), f"{currency} {invoice.grand_total:.2f}", True),
+        ]
     label_align = "RIGHT" if is_arabic else "LEFT"
     value_align = "LEFT" if is_arabic else "RIGHT"
     totals_data = []
@@ -390,6 +477,43 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         elements.append(Paragraph(_label("terms", language), heading_style))
         elements.append(Paragraph(_rtl(invoice.terms).replace("\n", "<br/>"), normal))
 
+    if is_proforma:
+        footer_text = _proforma_footer_details(tenant, language)
+        if footer_text:
+            elements.append(Spacer(1, 8 * mm))
+            elements.append(Paragraph(footer_text, normal))
+
+    doc_type_options = tenant.branding_options.get(invoice.type.value, {})
+    show_stamp = bool(doc_type_options.get("show_stamp")) and tenant.stamp_url
+    show_signature = bool(doc_type_options.get("show_signature")) and tenant.signature_url
+    if show_stamp or show_signature:
+        signature_cell: list = []
+        if show_signature:
+            signature_image = _load_signature(tenant.signature_url)
+            if signature_image is not None:
+                signature_cell.append(signature_image)
+            signature_cell.append(Paragraph(_label("authorized_signatory", language), muted_small))
+
+        stamp_cell: list = []
+        if show_stamp:
+            stamp_image = _load_stamp(tenant.stamp_url)
+            if stamp_image is not None:
+                stamp_cell.append(stamp_image)
+
+        if signature_cell or stamp_cell:
+            branding_row = [stamp_cell, signature_cell] if is_arabic else [signature_cell, stamp_cell]
+            branding_table = Table([branding_row], colWidths=[80 * mm, 80 * mm])
+            branding_table.setStyle(
+                TableStyle(
+                    [
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                    ]
+                )
+            )
+            elements.append(Spacer(1, 10 * mm))
+            elements.append(branding_table)
+
     elements.append(Spacer(1, 14 * mm))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e2e8f0"), spaceAfter=4 * mm))
     elements.append(Paragraph(_label("thank_you", language), muted_small))
@@ -405,6 +529,30 @@ def _load_logo(logo_url: str | None) -> Image | None:
         response = httpx.get(logo_url, timeout=5.0)
         response.raise_for_status()
         image = Image(io.BytesIO(response.content), width=25 * mm, height=25 * mm, kind="proportional")
+        return image
+    except Exception:
+        return None
+
+
+def _load_stamp(stamp_url: str | None) -> Image | None:
+    if not stamp_url:
+        return None
+    try:
+        response = httpx.get(stamp_url, timeout=5.0)
+        response.raise_for_status()
+        image = Image(io.BytesIO(response.content), width=25 * mm, height=25 * mm, kind="proportional")
+        return image
+    except Exception:
+        return None
+
+
+def _load_signature(signature_url: str | None) -> Image | None:
+    if not signature_url:
+        return None
+    try:
+        response = httpx.get(signature_url, timeout=5.0)
+        response.raise_for_status()
+        image = Image(io.BytesIO(response.content), width=35 * mm, height=18 * mm, kind="proportional")
         return image
     except Exception:
         return None
@@ -427,7 +575,35 @@ def _invoice_details(invoice: Invoice, language) -> str:
     ]
     if invoice.due_date:
         lines.append(f"<b>{_label('due_date', language)}:</b> {invoice.due_date.isoformat()}")
+    if invoice.type == InvoiceType.PROFORMA:
+        if invoice.lpo_no:
+            lines.append(f"<b>{_label('lpo_no', language)}:</b> {_rtl(invoice.lpo_no)}")
+        if invoice.project_villa_no:
+            lines.append(f"<b>{_label('villa_no', language)}:</b> {_rtl(invoice.project_villa_no)}")
     lines.append(f"<b>{_label('status', language)}:</b> {_status_label(invoice.status.value, language)}")
+    return "<br/>".join(lines)
+
+
+def _proforma_footer_details(tenant: Tenant, language) -> str | None:
+    lines: list[str] = []
+    if tenant.cheque_payee_name:
+        lines.append(f"{_label('make_cheques_payable', language)}: {_rtl(tenant.cheque_payee_name)}")
+    if tenant.bank_name:
+        lines.append(f"{_label('bank_name', language)}: {_rtl(tenant.bank_name)}")
+    if tenant.bank_account_number:
+        lines.append(f"{_label('bank_account', language)}: {tenant.bank_account_number}")
+    if tenant.bank_iban:
+        lines.append(f"{_label('iban', language)}: {tenant.bank_iban}")
+    if tenant.contact_person or tenant.contact_phone:
+        contact = ", ".join(
+            part for part in (tenant.contact_person and _rtl(tenant.contact_person), tenant.contact_phone) if part
+        )
+        lines.append(f"{_label('contact', language)}: {contact}")
+    if tenant.address:
+        lines.append(_rtl(tenant.address))
+    if not lines:
+        return None
+    lines.append(_label("thank_you", language))
     return "<br/>".join(lines)
 
 
@@ -446,6 +622,4 @@ def _customer_details(customer: Customer, language) -> str:
 
 def _format_decimal(value) -> str:
     normalized = value.normalize()
-    if normalized == normalized.to_integral():
-        return str(normalized.to_integral())
-    return str(normalized)
+    return f"{normalized:f}"

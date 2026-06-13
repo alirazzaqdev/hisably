@@ -7,7 +7,7 @@
  * logic can be mirrored in the backend (app/catalog/industry_profiles.py).
  */
 
-export type FieldScope = "header" | "line";
+export type FieldScope = "header" | "line" | "module";
 
 export type FieldDataType = "string" | "number" | "boolean" | "enum";
 
@@ -51,6 +51,9 @@ export const FIELD_CATALOG: FieldDefinition[] = [
   { id: "line.parts_labour_split", scope: "line", labelEn: "Parts vs Labour", labelAr: "قطع غيار / أجرة", dataType: "enum", enumOptions: ["parts", "labour"] },
   { id: "line.hourly_rate", scope: "line", labelEn: "Hours x Rate", labelAr: "الساعات × السعر", dataType: "boolean" },
   { id: "line.warranty_months", scope: "line", labelEn: "Warranty (months)", labelAr: "الضمان (أشهر)", dataType: "number" },
+
+  // Module-scope fields (toggle whole optional modules on/off)
+  { id: "module.job_register", scope: "module", labelEn: "Job / Project Register", labelAr: "سجل المشاريع", dataType: "boolean" },
 ];
 
 export const INDUSTRY_PRESETS: IndustryPreset[] = [
@@ -66,21 +69,21 @@ export const INDUSTRY_PRESETS: IndustryPreset[] = [
     labelEn: "Glass & Aluminium / Fit-out Contracting",
     labelAr: "زجاج وألمنيوم / تشطيبات",
     description: "Area and linear-meter pricing, LPO/Villa references for contracting work.",
-    enabledFields: ["header.lpo_no", "header.villa_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.brand_model"],
+    enabledFields: ["header.lpo_no", "header.villa_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.brand_model", "module.job_register"],
   },
   {
     key: "construction_civil",
     labelEn: "Construction / Civil",
     labelAr: "إنشاءات / مدنية",
     description: "BOQ-style items with area/linear units and parts vs labour split.",
-    enabledFields: ["header.lpo_no", "header.project_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.parts_labour_split"],
+    enabledFields: ["header.lpo_no", "header.project_no", "header.site_address", "line.width_height_sqm", "line.linear_meter", "line.parts_labour_split", "module.job_register"],
   },
   {
     key: "solar_renewable",
     labelEn: "Solar / Renewable",
     labelAr: "الطاقة الشمسية / المتجددة",
     description: "System capacity, component lines and warranty for solar installs.",
-    enabledFields: ["header.lpo_no", "header.project_no", "header.site_address", "header.warranty_months", "line.capacity_kw", "line.brand_model", "line.warranty_months"],
+    enabledFields: ["header.lpo_no", "header.project_no", "header.site_address", "header.warranty_months", "line.capacity_kw", "line.brand_model", "line.warranty_months", "module.job_register"],
   },
   {
     key: "electronics_mobile",
@@ -94,7 +97,7 @@ export const INDUSTRY_PRESETS: IndustryPreset[] = [
     labelEn: "Automotive / Garage",
     labelAr: "السيارات / الورشة",
     description: "Vehicle details with parts vs labour split and hourly billing.",
-    enabledFields: ["header.vehicle_plate", "header.vehicle_make_model", "line.parts_labour_split", "line.hourly_rate"],
+    enabledFields: ["header.vehicle_plate", "header.vehicle_make_model", "line.parts_labour_split", "line.hourly_rate", "module.job_register"],
   },
   {
     key: "services_freelance",
