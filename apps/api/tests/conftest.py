@@ -53,8 +53,7 @@ async def client(db_session):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-async def auth_headers(client, monkeypatch) -> dict[str, str]:
+async def _signup_and_verify(client, monkeypatch, email: str) -> dict[str, str]:
     """Signs up, verifies, and logs in a fresh user; returns Bearer auth headers."""
     from app.services import auth_service
 
@@ -65,9 +64,19 @@ async def auth_headers(client, monkeypatch) -> dict[str, str]:
 
     monkeypatch.setattr(auth_service, "send_otp_email", fake_send_otp_email)
 
-    email = "owner@example.com"
     await client.post("/api/v1/auth/signup", json={"email": email, "password": "supersecret"})
     otp_code = captured[email]
     verify_resp = await client.post("/api/v1/auth/verify-otp", json={"email": email, "otp_code": otp_code})
     access_token = verify_resp.json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+async def auth_headers(client, monkeypatch) -> dict[str, str]:
+    return await _signup_and_verify(client, monkeypatch, "owner@example.com")
+
+
+@pytest.fixture
+async def other_tenant_auth_headers(client, monkeypatch) -> dict[str, str]:
+    """A second, unrelated tenant's owner — used for cross-tenant isolation tests."""
+    return await _signup_and_verify(client, monkeypatch, "rival@example.com")

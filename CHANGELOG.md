@@ -68,11 +68,42 @@ All notable changes to this project are documented here.
 - No `/auth/me` endpoint yet — the frontend doesn't need user profile data
   until the dashboard/settings modules; tokens alone are enough to gate routes.
 
+### Added — Final polish pass (design system, branding, Job Register, quality bar)
+
+- Rolled out the shared `PageHeader` component and the responsive
+  table→cards list pattern across every remaining list page (Invoices, Price
+  Lists, Payments, Customers, Suppliers, Accounts, Expenses, Recurring
+  Invoices, Job Register, Receipts, and customer/supplier statements), and
+  standardized loading/error/empty states (icon + message + CTA) in place of
+  the old `TableStateRow`/`TableErrorRow` rows.
+- Settings → Branding: upload logo/stamp/signature and toggle per-document
+  footer display (`tenants.stamp_url`, `signature_url`, `branding_options`);
+  invoice PDFs render the stamp/signature footer when enabled.
+- Each invoice type now exposes its own relevant inputs (SQM/linear-meter
+  sizing for all non-proforma types, proforma LPO/villa/bill-to/ship-to
+  fields) and the same fields render on the generated PDF.
+- Fixed invoice-level discount handling in `packages/shared/src/invoice-math`
+  so VAT is re-derived proportionally per line on the discounted taxable
+  amount (previously only the frontend preview under-counted VAT after a
+  discount).
+- New Job Register module: rows (quotation/LPO tracking, work/tax/payment
+  status) and receipts, with backend models/routes/tests and a responsive
+  frontend page.
+- Industry-profile registry (`packages/shared/src/industry-profiles`,
+  `app/catalog/industry_profiles.py`) plus a Settings → Document Fields page
+  for choosing an industry preset and field overrides (Phase 2 — fields are
+  not yet wired into the invoice form/PDF).
+- Cross-tenant isolation tests (`apps/api/tests/test_tenant_isolation.py`):
+  a second tenant gets 404s for another tenant's customers/invoices via the
+  API, not just at the query layer.
+- `apps/api/scripts/seed_demo_data.py`: realistic demo UAE tenant (glass &
+  aluminium contractor) with customers, suppliers, items, invoices across
+  all document types, payments (including a cheque), expenses, and a Job
+  Register — see README for usage.
+
 ### Pending
 
-- Pydantic schemas, repository/service layer, and real route implementations
-  for the remaining `apps/api/app/api/v1/routes/*` stubs (Customers/Items next).
-- IndexedDB schema (Dexie) + sync queue on the frontend.
-- Seed script with demo UAE tenant data.
-- `(app)` authenticated shell (sidebar/bottom-tabs) — middleware already
-  protects these routes, but the layout and `/dashboard` page don't exist yet.
+- Wire the industry-profile field catalog into the invoice form/PDF (Phase 5).
+- Onboarding industry-preset picker (Phase 3).
+- Saudi Arabia / Pakistan tax regimes (`NotImplementedError` placeholders
+  exist in both the shared package and `apps/api/app/tax/regimes.py`).

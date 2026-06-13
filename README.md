@@ -79,6 +79,20 @@ App: http://localhost:3000
 docker compose up --build
 ```
 
+### 5. Seed demo data (optional)
+
+Populate a realistic demo tenant — a glass & aluminium contracting business
+with customers, suppliers, items, invoices (tax invoice, quotation, proforma,
+purchase bill), payments, expenses, and a Job Register:
+
+```bash
+cd apps/api && source .venv/Scripts/activate
+python -m scripts.seed_demo_data
+```
+
+Log in with `demo@hisably.app` / `Demo@1234`. Safe to re-run — it's a no-op
+if the demo tenant already exists.
+
 ## Testing
 
 ```bash
