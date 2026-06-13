@@ -418,9 +418,9 @@ export default function ReportsPage() {
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => `${currency} ${value.toLocaleString()}`} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
                     <span className="text-caption text-muted-foreground">Net due</span>
-                    <span className="text-body-lg font-semibold text-foreground">
+                    <span className="text-body-sm font-semibold text-foreground">
                       {currency} {(outputVat - inputVat).toLocaleString()}
                     </span>
                   </div>
