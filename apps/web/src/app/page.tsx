@@ -55,13 +55,13 @@ export default function Home() {
             <h1 className="max-w-2xl text-display text-foreground text-balance">
               Billing & invoicing for growing businesses
             </h1>
-            <p className="max-w-xl text-body-lg text-muted-foreground text-balance">
-              Hisably helps small and medium businesses create invoices, track
-              payments, and stay VAT-compliant — online or offline.
+            <p className="max-w-xl text-body-lg leading-relaxed text-muted-foreground text-balance">
+              Create invoices, track payments, and stay VAT-compliant, whether
+              you&apos;re online or offline.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Button asChild variant="primary" size="lg">
-                <Link href="/signup">Start your free trial</Link>
+                <Link href="/signup">Get started</Link>
               </Button>
               <Button asChild variant="secondary" size="lg">
                 <Link href="/login">Log in</Link>
