@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -25,7 +26,7 @@ export default function Home() {
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="text-h3 font-semibold text-foreground">Hisably</span>
+          <Logo size="sm" />
           <nav className="flex items-center gap-3">
             <Button asChild variant="ghost">
               <Link href="/login">Log in</Link>
