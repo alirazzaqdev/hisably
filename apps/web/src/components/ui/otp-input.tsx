@@ -70,7 +70,7 @@ export function OtpInput({
           aria-label={`Digit ${index + 1}`}
           className={cn(
             "h-12 w-11 rounded-md border border-border bg-surface text-center text-h2 tabular-nums text-foreground transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         />

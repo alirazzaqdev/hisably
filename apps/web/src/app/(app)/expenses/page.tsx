@@ -71,7 +71,7 @@ export default function ExpensesPage() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="h-10 rounded-md border border-border bg-surface px-3 text-body-lg text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:max-w-[180px]"
+          className="h-10 rounded-md border border-border bg-surface px-3 text-body-lg text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:max-w-[180px]"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
