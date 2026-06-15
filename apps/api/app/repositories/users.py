@@ -29,6 +29,13 @@ async def list_by_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
     return list(result.scalars().all())
 
 
+async def get_owner(db: AsyncSession, tenant_id: uuid.UUID) -> User | None:
+    result = await db.execute(
+        select(User).where(User.tenant_id == tenant_id, User.role == UserRole.OWNER).order_by(User.created_at)
+    )
+    return result.scalars().first()
+
+
 async def create_staff(db: AsyncSession, tenant_id: uuid.UUID, payload: StaffCreate) -> User:
     user = User(
         tenant_id=tenant_id,

@@ -70,6 +70,7 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     quotation_status: Mapped[QuotationStatus | None] = mapped_column(
         Enum(QuotationStatus, native_enum=False), nullable=True
     )
+    expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class InvoiceLineItem(Base, UUIDPrimaryKeyMixin):

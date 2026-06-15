@@ -332,6 +332,27 @@ async def count_quotations_by_status(db: AsyncSession, tenant_id: uuid.UUID) -> 
     return counts
 
 
+async def list_newly_expired_quotations(db: AsyncSession, tenant_id: uuid.UUID) -> list[Invoice]:
+    today = date.today()
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.type == InvoiceType.QUOTATION,
+            Invoice.quotation_status == QuotationStatus.PENDING,
+            Invoice.due_date < today,
+            Invoice.expiry_notified_at.is_(None),
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def mark_expiry_notified(db: AsyncSession, invoice: Invoice) -> None:
+    from datetime import datetime, timezone
+
+    invoice.expiry_notified_at = datetime.now(timezone.utc)
+    await db.flush()
+
+
 async def set_quotation_status(
     db: AsyncSession, invoice: Invoice, status: QuotationStatus, due_date: date | None
 ) -> Invoice:

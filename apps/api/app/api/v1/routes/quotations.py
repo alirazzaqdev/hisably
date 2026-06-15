@@ -5,11 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
+from app.core.email import send_quotation_expired_email
 from app.db.session import get_db
 from app.models.enums import QuotationStatus
 from app.models.invoice import Invoice
 from app.models.tenant import Tenant
+from app.repositories import customers as customers_repo
 from app.repositories import invoices as invoices_repo
+from app.repositories import users as users_repo
 from app.schemas.common import Page
 from app.schemas.invoice import InvoiceLineItemOut, InvoiceOut, QuotationCounts, QuotationStatusUpdate
 
@@ -22,6 +25,25 @@ ALLOWED_TRANSITIONS: dict[QuotationStatus, set[QuotationStatus]] = {
     QuotationStatus.PENDING: {QuotationStatus.APPROVED, QuotationStatus.REJECTED},
     QuotationStatus.EXPIRED: {QuotationStatus.PENDING},
 }
+
+
+async def _notify_expired_quotations(db: AsyncSession, tenant: Tenant) -> None:
+    expired = await invoices_repo.list_newly_expired_quotations(db, tenant.id)
+    if not expired:
+        return
+
+    owner = await users_repo.get_owner(db, tenant.id)
+    for invoice in expired:
+        if owner is not None:
+            customer = await customers_repo.get_by_id(db, tenant.id, invoice.customer_id) if invoice.customer_id else None
+            send_quotation_expired_email(
+                owner.email,
+                invoice.invoice_number or invoice.draft_number,
+                customer.name if customer else "—",
+                invoice.due_date.isoformat() if invoice.due_date else "—",
+            )
+        await invoices_repo.mark_expiry_notified(db, invoice)
+    await db.commit()
 
 
 def _to_out(invoice: Invoice) -> InvoiceOut:
@@ -40,6 +62,7 @@ async def list_quotations(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> Page[InvoiceOut]:
+    await _notify_expired_quotations(db, tenant)
     items, total = await invoices_repo.list_quotations(
         db, tenant.id, status=status_filter, search=search, page=page, page_size=page_size
     )
@@ -51,6 +74,7 @@ async def get_quotation_counts(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> QuotationCounts:
+    await _notify_expired_quotations(db, tenant)
     counts = await invoices_repo.count_quotations_by_status(db, tenant.id)
     return QuotationCounts(
         draft=counts[QuotationStatus.DRAFT.value],

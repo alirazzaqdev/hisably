@@ -70,6 +70,31 @@ async def test_quotation_pdf_renders_with_quotation_labels(client, auth_headers,
     assert public_pdf_resp.content[:4] == b"%PDF"
 
 
+async def test_expired_quotation_notifies_owner_once(client, auth_headers, db_session, caplog):
+    customer_id = await _create_customer(client, auth_headers)
+    past_due = (date.today() - timedelta(days=5)).isoformat()
+    quotation = await _create_quotation(client, auth_headers, customer_id, due_date=past_due)
+    await _set_quotation_status(db_session, quotation["id"], QuotationStatus.PENDING)
+
+    with caplog.at_level("INFO", logger="hisably.email"):
+        first_resp = await client.get("/api/v1/quotations/counts", headers=auth_headers)
+        assert first_resp.status_code == 200
+        assert "Quotation expired email" in caplog.text
+        assert quotation["invoice_number"] in caplog.text
+
+    caplog.clear()
+
+    result = await db_session.execute(select(Invoice).where(Invoice.id == uuid.UUID(quotation["id"])))
+    invoice = result.scalar_one()
+    assert invoice.expiry_notified_at is not None
+    assert invoice.quotation_status == QuotationStatus.PENDING
+
+    with caplog.at_level("INFO", logger="hisably.email"):
+        second_resp = await client.get("/api/v1/quotations/counts", headers=auth_headers)
+        assert second_resp.status_code == 200
+        assert "Quotation expired email" not in caplog.text
+
+
 async def test_quotation_with_site_image_renders_pdf(client, auth_headers):
     customer_id = await _create_customer(client, auth_headers)
     payload = {
