@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRightLeft, Plus, Wallet } from "lucide-react";
+import { ArrowRightLeft, FileText, Plus, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -145,6 +145,7 @@ export default function AccountsPage() {
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Bank</th>
                   <th className="px-4 py-3 text-right font-medium">Balance</th>
+                  <th className="px-4 py-3 text-right font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -158,6 +159,15 @@ export default function AccountsPage() {
                     <td className="px-4 py-3 capitalize text-muted-foreground">{account.type}</td>
                     <td className="px-4 py-3 text-muted-foreground">{account.bank_name ?? "—"}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{account.current_balance}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/accounts/${account.id}/statement`}
+                        className="inline-flex items-center gap-1 text-body-sm font-medium text-accent-700 hover:underline"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        Statement
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -167,20 +177,25 @@ export default function AccountsPage() {
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 md:hidden">
             {data.map((account) => (
-              <Link
-                key={account.id}
-                href={`/accounts/${account.id}/edit`}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface p-4"
-              >
-                <div>
-                  <p className="font-medium text-foreground">{account.name}</p>
-                  <p className="text-body-sm capitalize text-muted-foreground">
-                    {account.type}
-                    {account.bank_name ? ` · ${account.bank_name}` : ""}
-                  </p>
-                </div>
-                <p className="text-body font-medium tabular-nums text-foreground">{account.current_balance}</p>
-              </Link>
+              <div key={account.id} className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+                <Link href={`/accounts/${account.id}/edit`} className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-foreground">{account.name}</p>
+                    <p className="text-body-sm capitalize text-muted-foreground">
+                      {account.type}
+                      {account.bank_name ? ` · ${account.bank_name}` : ""}
+                    </p>
+                  </div>
+                  <p className="text-body font-medium tabular-nums text-foreground">{account.current_balance}</p>
+                </Link>
+                <Link
+                  href={`/accounts/${account.id}/statement`}
+                  className="inline-flex items-center gap-1 text-body-sm font-medium text-accent-700 hover:underline"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Statement
+                </Link>
+              </div>
             ))}
           </div>
         </>

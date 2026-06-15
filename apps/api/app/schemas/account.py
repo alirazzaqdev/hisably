@@ -53,3 +53,21 @@ class AccountTransferOut(BaseModel):
     amount: Decimal
     transfer_date: date
     notes: str | None
+
+
+class AccountStatementEntry(BaseModel):
+    date: date
+    description: str
+    amount_in: Decimal
+    amount_out: Decimal
+    balance: Decimal
+
+
+class AccountStatementOut(BaseModel):
+    account_id: uuid.UUID
+    account_name: str
+    date_from: date | None
+    date_to: date | None
+    opening_balance: Decimal
+    closing_balance: Decimal
+    entries: list[AccountStatementEntry]

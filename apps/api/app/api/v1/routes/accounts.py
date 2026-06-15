@@ -1,6 +1,9 @@
+import csv
+import io
 import uuid
+from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
@@ -8,7 +11,15 @@ from app.db.session import get_db
 from app.models.account import Account
 from app.models.tenant import Tenant
 from app.repositories import accounts as accounts_repo
-from app.schemas.account import AccountCreate, AccountOut, AccountTransferCreate, AccountTransferOut, AccountUpdate
+from app.schemas.account import (
+    AccountCreate,
+    AccountOut,
+    AccountStatementOut,
+    AccountTransferCreate,
+    AccountTransferOut,
+    AccountUpdate,
+)
+from app.services.account_statement_pdf import render_account_statement_pdf
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -88,6 +99,87 @@ async def update_account(
     account = await accounts_repo.update(db, account, payload)
     await db.commit()
     return await _to_out(db, tenant.id, account)
+
+
+@router.get("/{account_id}/statement", response_model=AccountStatementOut)
+async def get_account_statement(
+    account_id: uuid.UUID,
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> AccountStatementOut:
+    account = await accounts_repo.get_by_id(db, tenant.id, account_id)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    opening_balance, entries, closing_balance = await accounts_repo.get_statement(db, tenant.id, account, date_from, date_to)
+    return AccountStatementOut(
+        account_id=account.id,
+        account_name=account.name,
+        date_from=date_from,
+        date_to=date_to,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        entries=entries,
+    )
+
+
+@router.get("/{account_id}/statement/pdf")
+async def get_account_statement_pdf(
+    account_id: uuid.UUID,
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    account = await accounts_repo.get_by_id(db, tenant.id, account_id)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    opening_balance, entries, closing_balance = await accounts_repo.get_statement(db, tenant.id, account, date_from, date_to)
+    pdf_bytes = render_account_statement_pdf(tenant, account, opening_balance, entries, closing_balance, date_from, date_to)
+    filename = f"{account.name.replace(' ', '_')}_statement.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.get("/{account_id}/statement/csv")
+async def get_account_statement_csv(
+    account_id: uuid.UUID,
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    account = await accounts_repo.get_by_id(db, tenant.id, account_id)
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    opening_balance, entries, closing_balance = await accounts_repo.get_statement(db, tenant.id, account, date_from, date_to)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Description", f"In ({tenant.currency})", f"Out ({tenant.currency})", f"Balance ({tenant.currency})"])
+    writer.writerow(["", "Opening balance", "", "", f"{opening_balance:.2f}"])
+    for entry in entries:
+        writer.writerow(
+            [
+                entry.date.isoformat(),
+                entry.description,
+                f"{entry.amount_in:.2f}" if entry.amount_in else "",
+                f"{entry.amount_out:.2f}" if entry.amount_out else "",
+                f"{entry.balance:.2f}",
+            ]
+        )
+    writer.writerow(["", "Closing balance", "", "", f"{closing_balance:.2f}"])
+
+    filename = f"{account.name.replace(' ', '_')}_statement.csv"
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)

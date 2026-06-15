@@ -1,12 +1,14 @@
 import uuid
+from datetime import date as date_type
 from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account, AccountTransfer
+from app.models.party import Customer, Supplier
 from app.models.payment import Payment
-from app.schemas.account import AccountCreate, AccountTransferCreate, AccountUpdate
+from app.schemas.account import AccountCreate, AccountStatementEntry, AccountTransferCreate, AccountUpdate
 
 
 async def create(db: AsyncSession, tenant_id: uuid.UUID, payload: AccountCreate) -> Account:
@@ -111,3 +113,85 @@ async def list_transfers(db: AsyncSession, tenant_id: uuid.UUID, account_id: uui
         )
     query = query.order_by(AccountTransfer.transfer_date.desc(), AccountTransfer.created_at.desc())
     return list((await db.execute(query)).scalars().all())
+
+
+async def get_statement(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    account: Account,
+    date_from: date_type | None,
+    date_to: date_type | None,
+) -> tuple[Decimal, list[AccountStatementEntry], Decimal]:
+    accounts = await list_all(db, tenant_id)
+    account_name_by_id = {a.id: a.name for a in accounts}
+
+    customers_result = await db.execute(select(Customer).where(Customer.tenant_id == tenant_id))
+    customer_name_by_id = {c.id: c.name for c in customers_result.scalars().all()}
+    suppliers_result = await db.execute(select(Supplier).where(Supplier.tenant_id == tenant_id))
+    supplier_name_by_id = {s.id: s.name for s in suppliers_result.scalars().all()}
+
+    payments_result = await db.execute(
+        select(Payment).where(
+            Payment.tenant_id == tenant_id,
+            Payment.account_id == account.id,
+            Payment.voided_at.is_(None),
+        )
+    )
+    transfers = await list_transfers(db, tenant_id, account.id)
+
+    rows: list[tuple[date_type, str, str, Decimal, Decimal]] = []  # (date, created_sort, description, amount_in, amount_out)
+
+    for payment in payments_result.scalars().all():
+        if payment.customer_id is not None:
+            name = customer_name_by_id.get(payment.customer_id, "Customer")
+            description = f"Payment received from {name}"
+            if payment.reference_no:
+                description += f" ({payment.reference_no})"
+            rows.append((payment.payment_date, str(payment.created_at), description, payment.amount, Decimal("0")))
+        elif payment.supplier_id is not None:
+            name = supplier_name_by_id.get(payment.supplier_id, "Supplier")
+            description = f"Payment to {name}"
+            if payment.reference_no:
+                description += f" ({payment.reference_no})"
+            rows.append((payment.payment_date, str(payment.created_at), description, Decimal("0"), payment.amount))
+
+    for transfer in transfers:
+        if transfer.to_account_id == account.id:
+            other = account_name_by_id.get(transfer.from_account_id, "Account")
+            description = f"Transfer from {other}"
+            if transfer.notes:
+                description += f" ({transfer.notes})"
+            rows.append((transfer.transfer_date, str(transfer.created_at), description, transfer.amount, Decimal("0")))
+        if transfer.from_account_id == account.id:
+            other = account_name_by_id.get(transfer.to_account_id, "Account")
+            description = f"Transfer to {other}"
+            if transfer.notes:
+                description += f" ({transfer.notes})"
+            rows.append((transfer.transfer_date, str(transfer.created_at), description, Decimal("0"), transfer.amount))
+
+    rows.sort(key=lambda r: (r[0], r[1]))
+
+    opening_balance = account.opening_balance
+    for txn_date, _, _, amount_in, amount_out in rows:
+        if date_from is not None and txn_date < date_from:
+            opening_balance += amount_in - amount_out
+
+    running_balance = opening_balance
+    entries: list[AccountStatementEntry] = []
+    for txn_date, _, description, amount_in, amount_out in rows:
+        if date_from is not None and txn_date < date_from:
+            continue
+        if date_to is not None and txn_date > date_to:
+            continue
+        running_balance += amount_in - amount_out
+        entries.append(
+            AccountStatementEntry(
+                date=txn_date,
+                description=description,
+                amount_in=amount_in,
+                amount_out=amount_out,
+                balance=running_balance,
+            )
+        )
+
+    return opening_balance, entries, running_balance

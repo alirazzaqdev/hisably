@@ -1,3 +1,6 @@
+import uuid
+
+
 async def _create_customer(client, auth_headers) -> str:
     resp = await client.post("/api/v1/customers", json={"name": "Acme Trading"}, headers=auth_headers)
     return resp.json()["id"]
@@ -131,3 +134,77 @@ async def test_account_transfer_moves_balance(client, auth_headers):
         headers=auth_headers,
     )
     assert same_account_resp.status_code == 400
+
+
+async def test_account_statement(client, auth_headers):
+    cash_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Cash Drawer", "type": "cash", "opening_balance": "100.00"}, headers=auth_headers
+    )
+    cash = cash_resp.json()
+    bank_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Main Bank", "type": "bank", "opening_balance": "0.00"}, headers=auth_headers
+    )
+    bank = bank_resp.json()
+
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+
+    await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "account_id": cash["id"],
+            "amount": "50.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "allocations": [{"invoice_id": invoice["id"], "amount": "50.00"}],
+        },
+        headers=auth_headers,
+    )
+
+    await client.post(
+        "/api/v1/accounts/transfers",
+        json={
+            "from_account_id": cash["id"],
+            "to_account_id": bank["id"],
+            "amount": "30.00",
+            "transfer_date": "2026-06-10",
+            "notes": "Deposit",
+        },
+        headers=auth_headers,
+    )
+
+    statement_resp = await client.get(f"/api/v1/accounts/{cash['id']}/statement", headers=auth_headers)
+    assert statement_resp.status_code == 200
+    statement = statement_resp.json()
+    assert statement["opening_balance"] == "100.00"
+    assert statement["closing_balance"] == "120.00"
+    assert len(statement["entries"]) == 2
+    assert statement["entries"][0]["amount_in"] == "50.00"
+    assert statement["entries"][0]["balance"] == "150.00"
+    assert statement["entries"][1]["amount_out"] == "30.00"
+    assert statement["entries"][1]["balance"] == "120.00"
+
+    filtered_resp = await client.get(
+        f"/api/v1/accounts/{cash['id']}/statement",
+        params={"date_from": "2026-06-08", "date_to": "2026-06-15"},
+        headers=auth_headers,
+    )
+    filtered = filtered_resp.json()
+    assert filtered["opening_balance"] == "150.00"
+    assert len(filtered["entries"]) == 1
+    assert filtered["closing_balance"] == "120.00"
+
+    pdf_resp = await client.get(f"/api/v1/accounts/{cash['id']}/statement/pdf", headers=auth_headers)
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"] == "application/pdf"
+    assert pdf_resp.content[:4] == b"%PDF"
+
+    csv_resp = await client.get(f"/api/v1/accounts/{cash['id']}/statement/csv", headers=auth_headers)
+    assert csv_resp.status_code == 200
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+    assert b"Opening balance" in csv_resp.content
+    assert b"Closing balance" in csv_resp.content
+
+    not_found_resp = await client.get(f"/api/v1/accounts/{uuid.uuid4()}/statement", headers=auth_headers)
+    assert not_found_resp.status_code == 404
