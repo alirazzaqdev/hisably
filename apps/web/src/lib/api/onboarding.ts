@@ -35,6 +35,7 @@ export interface TenantOut {
   bank_iban: string | null;
   contact_person: string | null;
   contact_phone: string | null;
+  contact_email: string | null;
   stamp_url: string | null;
   signature_url: string | null;
   branding_options: Record<string, Record<string, boolean>>;

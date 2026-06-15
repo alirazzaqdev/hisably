@@ -128,6 +128,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const [shipToAddress, setShipToAddress] = useState(invoice?.ship_to_address ?? "");
   const [siteImageUrl, setSiteImageUrl] = useState(invoice?.site_image_url ?? "");
   const [uploadingSiteImage, setUploadingSiteImage] = useState(false);
+  const [siteImageAfterUrl, setSiteImageAfterUrl] = useState(invoice?.site_image_after_url ?? "");
+  const [uploadingSiteImageAfter, setUploadingSiteImageAfter] = useState(false);
   const [lines, setLines] = useState<InvoiceLineItemInput[]>(
     invoice?.line_items?.length
       ? invoice.line_items.map((li) => ({
@@ -182,6 +184,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     setProjectVillaNo(sourceInvoice.project_villa_no ?? "");
     setBillToAddress(sourceInvoice.bill_to_address ?? "");
     setShipToAddress(sourceInvoice.ship_to_address ?? "");
+    if (type === "proforma" && sourceInvoice.site_image_url) {
+      setSiteImageUrl(sourceInvoice.site_image_url);
+    }
     const isQuotationToProforma = type === "proforma" && sourceInvoice.type === "quotation";
     setLines(
       sourceInvoice.line_items.map((li) => {
@@ -238,7 +243,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         project_villa_no: type === "proforma" ? projectVillaNo || null : null,
         bill_to_address: type === "proforma" ? billToAddress || null : null,
         ship_to_address: type === "proforma" ? shipToAddress || null : null,
-        site_image_url: type === "quotation" ? siteImageUrl || null : null,
+        site_image_url: type === "quotation" || type === "proforma" ? siteImageUrl || null : null,
+        site_image_after_url: type === "proforma" ? siteImageAfterUrl || null : null,
         line_items: lines,
         converted_from_id: convertedFromId,
       };
@@ -337,6 +343,26 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       }
     } finally {
       setUploadingSiteImage(false);
+      event.target.value = "";
+    }
+  }
+
+  async function handleSiteImageAfterChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingSiteImageAfter(true);
+    setFormError(null);
+    try {
+      const attachment = await attachmentsApi.upload(file, "proforma_site_image_after");
+      setSiteImageAfterUrl(attachment.file_url);
+    } catch (error) {
+      if (error instanceof ApiError && typeof error.detail === "string") {
+        setFormError(error.detail);
+      } else {
+        setFormError("Failed to upload image. Please try again.");
+      }
+    } finally {
+      setUploadingSiteImageAfter(false);
       event.target.value = "";
     }
   }
@@ -846,6 +872,64 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                       Remove image
                     </Button>
                   )}
+                </div>
+              )}
+              {type === "proforma" && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="site_image_before">Site image (before)</Label>
+                    {siteImageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={siteImageUrl}
+                        alt="Site before"
+                        className="h-32 w-full rounded-md border border-border object-cover"
+                      />
+                    )}
+                    <Input
+                      id="site_image_before"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleSiteImageChange}
+                      disabled={uploadingSiteImage}
+                    />
+                    {uploadingSiteImage && <p className="text-body-sm text-muted-foreground">Uploading…</p>}
+                    {siteImageUrl && !uploadingSiteImage && (
+                      <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setSiteImageUrl("")}>
+                        Remove image
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="site_image_after">Site image (after)</Label>
+                    {siteImageAfterUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={siteImageAfterUrl}
+                        alt="Site after"
+                        className="h-32 w-full rounded-md border border-border object-cover"
+                      />
+                    )}
+                    <Input
+                      id="site_image_after"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleSiteImageAfterChange}
+                      disabled={uploadingSiteImageAfter}
+                    />
+                    {uploadingSiteImageAfter && <p className="text-body-sm text-muted-foreground">Uploading…</p>}
+                    {siteImageAfterUrl && !uploadingSiteImageAfter && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="self-start"
+                        onClick={() => setSiteImageAfterUrl("")}
+                      >
+                        Remove image
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
               <div className="grid gap-4 sm:grid-cols-3">

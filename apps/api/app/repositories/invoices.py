@@ -7,9 +7,11 @@ from sqlalchemy import and_, delete as sa_delete
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import InvoiceStatus, InvoiceType, QuotationStatus
+from app.models.enums import InvoiceStatus, InvoiceType, PaymentMethod, QuotationStatus
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
+from app.models.payment import Payment, PaymentAllocation
 from app.models.tenant import Tenant
+from app.repositories import payments as payments_repo
 from app.repositories.invoice_sequences import SEQUENCED_INVOICE_TYPES
 from app.schemas.invoice import InvoiceCreate, InvoiceLineItemInput, InvoiceUpdate
 from app.tax.invoice_math import InvoiceLineItemInput as MathLineItem
@@ -146,6 +148,7 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         bill_to_address=payload.bill_to_address,
         ship_to_address=payload.ship_to_address,
         site_image_url=payload.site_image_url,
+        site_image_after_url=payload.site_image_after_url,
         converted_from_id=payload.converted_from_id,
         **summary,
     )
@@ -158,7 +161,45 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
     await db.flush()
 
     invoice.line_items_loaded = line_items
+
+    if payload.type == InvoiceType.TAX_INVOICE and payload.converted_from_id is not None:
+        await _carry_forward_advance(db, tenant.id, invoice, payload.converted_from_id)
+
     return invoice
+
+
+async def _carry_forward_advance(
+    db: AsyncSession, tenant_id: uuid.UUID, invoice: Invoice, source_invoice_id: uuid.UUID
+) -> None:
+    """When a Tax Invoice is created from an approved Proforma, carry forward any
+    advance already paid on the Proforma as a payment allocated to the new Tax
+    Invoice, so its balance due reflects the remaining amount owed."""
+    result = await db.execute(
+        select(Invoice).where(Invoice.id == source_invoice_id, Invoice.tenant_id == tenant_id)
+    )
+    source = result.scalar_one_or_none()
+    if source is None or source.type != InvoiceType.PROFORMA:
+        return
+
+    paid = await payments_repo.get_paid_amount(db, source.id)
+    if paid <= 0:
+        return
+
+    payment = Payment(
+        tenant_id=tenant_id,
+        customer_id=invoice.customer_id,
+        supplier_id=invoice.supplier_id,
+        amount=paid,
+        method=PaymentMethod.OTHER,
+        payment_date=invoice.issue_date,
+        notes=f"Advance carried forward from {source.invoice_number or source.draft_number}",
+        client_uuid=uuid.uuid4(),
+    )
+    db.add(payment)
+    await db.flush()
+    db.add(PaymentAllocation(payment_id=payment.id, invoice_id=invoice.id, amount_allocated=min(paid, invoice.grand_total)))
+    await db.flush()
+    await payments_repo._refresh_invoice_status(db, invoice)
 
 
 async def get_by_id(db: AsyncSession, tenant_id: uuid.UUID, invoice_id: uuid.UUID) -> Invoice | None:

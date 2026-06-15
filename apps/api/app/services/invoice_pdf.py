@@ -12,6 +12,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -37,7 +38,7 @@ LABELS = {
     "unit_price": ("Unit price", "سعر الوحدة"),
     "vat": ("VAT", "ضريبة"),
     "total": ("Total", "الإجمالي"),
-    "final_payment": ("Final Payment", "الدفعة النهائية"),
+    "final_payment": ("Advance / Final Payment", "دفعة مقدمة / نهائية"),
     "rate": ("Rate", "السعر"),
     "subtotal": ("Subtotal", "المجموع الفرعي"),
     "discount": ("Discount", "الخصم"),
@@ -48,6 +49,10 @@ LABELS = {
     "notes": ("Notes", "ملاحظات"),
     "terms": ("Terms & Conditions", "الشروط والأحكام"),
     "site_image": ("Site image", "صورة الموقع"),
+    "site_image_before": ("Before", "قبل"),
+    "site_image_after": ("After", "بعد"),
+    "email": ("Email", "البريد الإلكتروني"),
+    "phone": ("Phone", "الهاتف"),
     "tax_invoice": ("Tax Invoice", "فاتورة ضريبية"),
     "invoice": ("Invoice", "فاتورة"),
     "proforma_invoice": ("Proforma Invoice", "فاتورة مبدئية"),
@@ -504,11 +509,29 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         elements.append(Paragraph(_label("terms", language), heading_style))
         elements.append(Paragraph(_rtl(invoice.terms).replace("\n", "<br/>"), normal))
 
-    site_image = _load_site_image(invoice.site_image_url)
-    if site_image is not None:
-        elements.append(Spacer(1, 6 * mm))
-        elements.append(Paragraph(_label("site_image", language), heading_style))
-        elements.append(site_image)
+    if is_proforma:
+        before_image = _load_site_image(invoice.site_image_url)
+        after_image = _load_site_image(invoice.site_image_after_url)
+        if before_image is not None or after_image is not None:
+            elements.append(Spacer(1, 6 * mm))
+            elements.append(Paragraph(_label("site_image", language), heading_style))
+            before_cell = [Paragraph(_label("site_image_before", language), muted_small), before_image] if before_image else []
+            after_cell = [Paragraph(_label("site_image_after", language), muted_small), after_image] if after_image else []
+            if before_cell and after_cell:
+                images_row = [after_cell, before_cell] if is_arabic else [before_cell, after_cell]
+                images_table = Table([images_row], colWidths=[80 * mm, 80 * mm])
+                images_table.setStyle(TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+                elements.append(images_table)
+            elif before_cell:
+                elements.extend(before_cell)
+            elif after_cell:
+                elements.extend(after_cell)
+    else:
+        site_image = _load_site_image(invoice.site_image_url)
+        if site_image is not None:
+            elements.append(Spacer(1, 6 * mm))
+            elements.append(Paragraph(_label("site_image", language), heading_style))
+            elements.append(site_image)
 
     if is_tax_invoice:
         footer_text = _bank_details_footer(tenant, language)
@@ -534,12 +557,14 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
                 stamp_cell.append(stamp_image)
 
         if signature_cell or stamp_cell:
-            branding_row = [stamp_cell, signature_cell] if is_arabic else [signature_cell, stamp_cell]
-            branding_table = Table([branding_row], colWidths=[80 * mm, 80 * mm])
+            # Stamp sits centered, signature (with caption) sits at the bottom-right.
+            branding_row = [[], stamp_cell, signature_cell]
+            branding_table = Table([branding_row], colWidths=[53 * mm, 54 * mm, 53 * mm])
             branding_table.setStyle(
                 TableStyle(
                     [
                         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("ALIGN", (2, 0), (2, -1), "RIGHT"),
                         ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
                     ]
                 )
@@ -547,11 +572,21 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
             elements.append(Spacer(1, 10 * mm))
             elements.append(branding_table)
 
+    if is_proforma or is_tax_invoice:
+        contact_footer = _contact_footer(tenant, language)
+        if contact_footer:
+            elements.append(Spacer(1, 6 * mm))
+            elements.append(Paragraph(contact_footer, muted_small))
+
     elements.append(Spacer(1, 14 * mm))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e2e8f0"), spaceAfter=4 * mm))
     elements.append(Paragraph(_label("thank_you", language), muted_small))
 
-    doc.build(elements)
+    on_page = _watermark_drawer(tenant)
+    if on_page is not None:
+        doc.build(elements, onFirstPage=on_page, onLaterPages=on_page)
+    else:
+        doc.build(elements)
     return buffer.getvalue()
 
 
@@ -580,6 +615,33 @@ def _load_logo(logo_url: str | None) -> Image | None:
         return Image(io.BytesIO(data), width=25 * mm, height=25 * mm, kind="proportional")
     except Exception:
         return None
+
+
+def _watermark_drawer(tenant: Tenant):
+    if not tenant.logo_url:
+        return None
+    data = _load_image_bytes(tenant.logo_url)
+    if data is None:
+        return None
+
+    def draw(canvas, doc) -> None:
+        try:
+            reader = ImageReader(io.BytesIO(data))
+            img_width, img_height = reader.getSize()
+            size = 100 * mm
+            ratio = min(size / img_width, size / img_height)
+            width, height = img_width * ratio, img_height * ratio
+            page_width, page_height = A4
+            x = (page_width - width) / 2
+            y = (page_height - height) / 2
+            canvas.saveState()
+            canvas.setFillAlpha(0.06)
+            canvas.drawImage(reader, x, y, width=width, height=height, mask="auto", preserveAspectRatio=True)
+            canvas.restoreState()
+        except Exception:
+            pass
+
+    return draw
 
 
 def _load_stamp(stamp_url: str | None) -> Image | None:
@@ -673,6 +735,22 @@ def _bank_details_footer(tenant: Tenant, language) -> str | None:
         return None
     lines.append(_label("thank_you", language))
     return "<br/>".join(lines)
+
+
+def _contact_footer(tenant: Tenant, language) -> str | None:
+    parts: list[str] = []
+    if tenant.business_name:
+        parts.append(f"<b>{_rtl(tenant.business_name, bold_font=True)}</b>")
+    contact_bits: list[str] = []
+    if tenant.contact_email:
+        contact_bits.append(f"{_label('email', language)}: {tenant.contact_email}")
+    if tenant.contact_phone:
+        contact_bits.append(f"{_label('phone', language)}: {tenant.contact_phone}")
+    if contact_bits:
+        parts.append(" | ".join(contact_bits))
+    if not parts:
+        return None
+    return "<br/>".join(parts)
 
 
 def _customer_details(customer: Customer, language) -> str:

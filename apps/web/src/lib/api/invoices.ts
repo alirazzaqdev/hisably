@@ -75,11 +75,14 @@ export interface Invoice {
   bill_to_address: string | null;
   ship_to_address: string | null;
   site_image_url: string | null;
+  site_image_after_url: string | null;
   void_reason: string | null;
   converted_from_id: string | null;
   public_token: string | null;
   quotation_status: QuotationStatus | null;
   effective_quotation_status: QuotationStatus | null;
+  paid_amount: string;
+  balance_due: string;
   line_items: InvoiceLineItem[];
 }
 
@@ -102,8 +105,20 @@ export interface InvoiceInput {
   bill_to_address?: string | null;
   ship_to_address?: string | null;
   site_image_url?: string | null;
+  site_image_after_url?: string | null;
   line_items: InvoiceLineItemInput[];
   converted_from_id?: string | null;
+}
+
+export interface InvoicePayment {
+  id: string;
+  amount: string;
+  allocated_amount: string;
+  method: import("@/lib/api/payments").PaymentMethod;
+  reference_no: string | null;
+  payment_date: string;
+  notes: string | null;
+  voided_at: string | null;
 }
 
 export const invoicesApi = {
@@ -129,6 +144,7 @@ export const invoicesApi = {
     }),
   remove: (id: string) => apiRequest<void>(`/invoices/${id}`, { method: "DELETE" }),
   share: (id: string) => apiRequest<Invoice>(`/invoices/${id}/share`, { method: "POST" }),
+  payments: (id: string) => apiRequest<InvoicePayment[]>(`/invoices/${id}/payments`),
   publicPdfUrl: (token: string) => `${API_BASE_URL}/public/invoices/${token}/pdf`,
   pdfBlob: async (id: string): Promise<Blob> => {
     const { accessToken } = useAuthStore.getState();

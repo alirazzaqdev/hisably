@@ -78,6 +78,17 @@ class PaymentOut(BaseModel):
     allocations: list[PaymentAllocationOut] = Field(default_factory=list)
 
 
+class InvoicePaymentOut(BaseModel):
+    id: uuid.UUID
+    amount: Decimal
+    allocated_amount: Decimal
+    method: PaymentMethod
+    reference_no: str | None
+    payment_date: date
+    notes: str | None
+    voided_at: datetime | None
+
+
 class ReceivableOut(BaseModel):
     invoice_id: uuid.UUID
     invoice_number: str | None

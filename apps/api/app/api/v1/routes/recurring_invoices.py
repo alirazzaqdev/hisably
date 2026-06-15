@@ -93,7 +93,7 @@ async def generate_recurring_invoice_now(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Recurring invoice is not active")
     invoice = await recurring_repo.generate_invoice(db, tenant, recurring)
     await db.commit()
-    return _invoice_to_out(invoice)
+    return await _invoice_to_out(db, invoice)
 
 
 @router.post("/run-due", response_model=list[InvoiceOut])
@@ -106,4 +106,4 @@ async def run_due_recurring_invoices(
     for recurring in due:
         invoices.append(await recurring_repo.generate_invoice(db, tenant, recurring))
     await db.commit()
-    return [_invoice_to_out(i) for i in invoices]
+    return [await _invoice_to_out(db, i) for i in invoices]

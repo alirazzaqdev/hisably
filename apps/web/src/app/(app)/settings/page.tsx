@@ -51,6 +51,7 @@ export default function SettingsPage() {
         bank_iban: tenant.bank_iban ?? "",
         contact_person: tenant.contact_person ?? "",
         contact_phone: tenant.contact_phone ?? "",
+        contact_email: tenant.contact_email ?? "",
         country: tenant.country,
         currency: tenant.currency,
         vat_rate: tenant.vat_rate,
@@ -241,13 +242,24 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="contact_phone">Contact phone</Label>
-              <Input
-                id="contact_phone"
-                value={form.contact_phone ?? ""}
-                onChange={(e) => update("contact_phone", e.target.value)}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="contact_phone">Contact phone</Label>
+                <Input
+                  id="contact_phone"
+                  value={form.contact_phone ?? ""}
+                  onChange={(e) => update("contact_phone", e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="contact_email">Contact email</Label>
+                <Input
+                  id="contact_email"
+                  type="email"
+                  value={form.contact_email ?? ""}
+                  onChange={(e) => update("contact_email", e.target.value)}
+                />
+              </div>
             </div>
 
             {successMessage && <p className="text-body-sm text-success-500">{successMessage}</p>}

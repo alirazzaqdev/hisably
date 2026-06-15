@@ -38,6 +38,19 @@ async def _refresh_invoice_status(db: AsyncSession, invoice: Invoice) -> None:
     await db.flush()
 
 
+async def list_for_invoice(db: AsyncSession, tenant_id: uuid.UUID, invoice_id: uuid.UUID) -> list[tuple[Payment, Decimal]]:
+    result = await db.execute(
+        select(Payment, PaymentAllocation.amount_allocated)
+        .join(PaymentAllocation, PaymentAllocation.payment_id == Payment.id)
+        .where(
+            PaymentAllocation.invoice_id == invoice_id,
+            Payment.tenant_id == tenant_id,
+        )
+        .order_by(Payment.payment_date.desc(), Payment.created_at.desc())
+    )
+    return [(payment, allocated_amount) for payment, allocated_amount in result.all()]
+
+
 async def get_allocations(db: AsyncSession, payment_id: uuid.UUID) -> list[PaymentAllocation]:
     result = await db.execute(select(PaymentAllocation).where(PaymentAllocation.payment_id == payment_id))
     return list(result.scalars().all())

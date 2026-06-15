@@ -16,13 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api-client";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
+import { Select } from "@/components/ui/select";
 import { invoicesApi, type InvoiceStatus, type QuotationStatus } from "@/lib/api/invoices";
+import { paymentsApi, type PaymentMethod } from "@/lib/api/payments";
 import { quotationsApi } from "@/lib/api/quotations";
 import { InvoiceStatusBadge } from "../status-badge";
 import { QuotationStatusBadge } from "../../quotations/status-badge";
@@ -40,6 +43,18 @@ const NEXT_STATUS: Partial<Record<InvoiceStatus, { label: string; status: Invoic
   ],
   partially_paid: [{ label: "Mark as paid", status: "paid" }],
 };
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "cheque", label: "Cheque" },
+  { value: "card", label: "Card" },
+  { value: "other", label: "Other" },
+];
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function InvoiceDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -66,6 +81,65 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     queryFn: () => suppliersApi.get(invoice!.supplier_id!),
     enabled: Boolean(invoice?.supplier_id),
   });
+
+  const showPayments = invoice?.type === "proforma" || invoice?.type === "tax_invoice";
+
+  const { data: invoicePayments } = useQuery({
+    queryKey: ["invoices", id, "payments"],
+    queryFn: () => invoicesApi.payments(id),
+    enabled: Boolean(showPayments),
+  });
+
+  const [paymentMode, setPaymentMode] = useState<"amount" | "percent">("amount");
+  const [paymentValue, setPaymentValue] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentDate, setPaymentDate] = useState(todayIso());
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  const recordPaymentMutation = useMutation({
+    mutationFn: (amount: string) =>
+      paymentsApi.create({
+        customer_id: invoice?.customer_id ?? null,
+        supplier_id: invoice?.supplier_id ?? null,
+        amount,
+        method: paymentMethod,
+        payment_date: paymentDate,
+        notes: paymentNotes || null,
+        allocations: [{ invoice_id: id, amount }],
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices", id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices", id, "payments"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setPaymentValue("");
+      setPaymentNotes("");
+      setPaymentError(null);
+      toast({ title: "Payment recorded", variant: "success" });
+    },
+    onError: (error) => {
+      setPaymentError(errorMessage(error, "Couldn't record payment. Try again."));
+    },
+  });
+
+  function submitPayment(event: React.FormEvent) {
+    event.preventDefault();
+    if (!invoice) return;
+    const grandTotal = Number(invoice.grand_total);
+    const balance = Number(invoice.balance_due);
+    const numericValue = Number(paymentValue);
+    if (!numericValue || numericValue <= 0) {
+      setPaymentError("Enter a valid amount.");
+      return;
+    }
+    const amount = paymentMode === "percent" ? (numericValue / 100) * grandTotal : numericValue;
+    if (amount > balance + 0.01) {
+      setPaymentError("Amount exceeds the remaining balance.");
+      return;
+    }
+    setPaymentError(null);
+    recordPaymentMutation.mutate(amount.toFixed(2));
+  }
 
   const statusMutation = useMutation({
     mutationFn: (status: InvoiceStatus) => invoicesApi.setStatus(id, status),
@@ -295,6 +369,137 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
               )}
             </CardContent>
           </Card>
+
+          {showPayments && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Payments</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {(() => {
+                  const grandTotal = Number(invoice.grand_total) || 0;
+                  const received = Number(invoice.paid_amount) || 0;
+                  const balance = Number(invoice.balance_due) || 0;
+                  const percentPaid = grandTotal > 0 ? (received / grandTotal) * 100 : 0;
+                  const percentDue = 100 - percentPaid;
+                  return (
+                    <div className="flex flex-col gap-2 text-body-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Received</span>
+                        <span className="text-foreground">
+                          {invoice.currency} {received.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Balance due</span>
+                        <span className="text-foreground">
+                          {invoice.currency} {balance.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">% paid / % due</span>
+                        <span className="text-foreground">
+                          {percentPaid.toFixed(1)}% / {percentDue.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {invoicePayments && invoicePayments.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-body-sm font-medium text-foreground">Installments</p>
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <table className="w-full text-left text-body-sm">
+                        <thead className="border-b border-border bg-muted text-caption text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Date</th>
+                            <th className="px-3 py-2 font-medium">Method</th>
+                            <th className="px-3 py-2 text-right font-medium">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoicePayments.map((payment) => (
+                            <tr key={payment.id} className="border-b border-border last:border-0">
+                              <td className="px-3 py-2">{payment.payment_date}</td>
+                              <td className="px-3 py-2 capitalize">
+                                {payment.method.replace("_", " ")}
+                                {payment.voided_at ? " (voided)" : ""}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums">
+                                {invoice.currency} {Number(payment.allocated_amount).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {invoice.status !== "void" && Number(invoice.balance_due) > 0 && (
+                  <form className="flex flex-col gap-3" onSubmit={submitPayment}>
+                    <p className="text-body-sm font-medium text-foreground">Record payment</p>
+                    <div className="flex gap-2">
+                      <Select
+                        value={paymentMode}
+                        onChange={(e) => setPaymentMode(e.target.value as "amount" | "percent")}
+                        className="w-32"
+                      >
+                        <option value="amount">Amount</option>
+                        <option value="percent">Percent</option>
+                      </Select>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder={paymentMode === "percent" ? "%" : "0.00"}
+                        value={paymentValue}
+                        onChange={(e) => setPaymentValue(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="payment_method">Method</Label>
+                        <Select
+                          id="payment_method"
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                        >
+                          {PAYMENT_METHODS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="payment_date">Date</Label>
+                        <Input
+                          id="payment_date"
+                          type="date"
+                          value={paymentDate}
+                          onChange={(e) => setPaymentDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="payment_notes">Notes</Label>
+                      <Input
+                        id="payment_notes"
+                        value={paymentNotes}
+                        onChange={(e) => setPaymentNotes(e.target.value)}
+                      />
+                    </div>
+                    <FormError>{paymentError}</FormError>
+                    <Button type="submit" disabled={recordPaymentMutation.isPending}>
+                      {recordPaymentMutation.isPending ? "Saving…" : "Record payment"}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

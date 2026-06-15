@@ -10,17 +10,24 @@ from app.models.invoice import Invoice
 from app.models.tenant import Tenant
 from app.repositories import customers as customers_repo
 from app.repositories import invoices as invoices_repo
+from app.repositories import payments as payments_repo
 from app.schemas.common import Page
 from app.schemas.invoice import InvoiceCreate, InvoiceLineItemOut, InvoiceOut, InvoiceStatusUpdate, InvoiceUpdate
+from app.schemas.payment import InvoicePaymentOut
 from app.services.invoice_pdf import render_invoice_pdf
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
-def _to_out(invoice: Invoice) -> InvoiceOut:
+async def _to_out(db: AsyncSession, invoice: Invoice) -> InvoiceOut:
     out = InvoiceOut.model_validate(invoice)
     out.line_items = [InvoiceLineItemOut.model_validate(li) for li in getattr(invoice, "line_items_loaded", [])]
     out.effective_quotation_status = invoices_repo.effective_quotation_status(invoice)
+    if invoice.type in (InvoiceType.PROFORMA, InvoiceType.TAX_INVOICE):
+        out.paid_amount = await payments_repo.get_paid_amount(db, invoice.id)
+        out.balance_due = invoice.grand_total - out.paid_amount
+    else:
+        out.balance_due = invoice.grand_total
     return out
 
 
@@ -37,7 +44,7 @@ async def list_invoices(
     items, total = await invoices_repo.list_paginated(
         db, tenant.id, search=search, status=status_filter, type=type_filter, page=page, page_size=page_size
     )
-    return Page(items=[_to_out(i) for i in items], total=total, page=page, page_size=page_size)
+    return Page(items=[await _to_out(db, i) for i in items], total=total, page=page, page_size=page_size)
 
 
 @router.post("", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
@@ -48,7 +55,7 @@ async def create_invoice(
 ) -> InvoiceOut:
     invoice = await invoices_repo.create(db, tenant, payload)
     await db.commit()
-    return _to_out(invoice)
+    return await _to_out(db, invoice)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)
@@ -60,7 +67,7 @@ async def get_invoice(
     invoice = await invoices_repo.get_by_id(db, tenant.id, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
-    return _to_out(invoice)
+    return await _to_out(db, invoice)
 
 
 @router.patch("/{invoice_id}", response_model=InvoiceOut)
@@ -77,7 +84,7 @@ async def update_invoice(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only draft or sent invoices can be edited")
     invoice = await invoices_repo.update(db, tenant, invoice, payload)
     await db.commit()
-    return _to_out(invoice)
+    return await _to_out(db, invoice)
 
 
 @router.patch("/{invoice_id}/status", response_model=InvoiceOut)
@@ -94,7 +101,7 @@ async def update_invoice_status(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invoice is already void")
     invoice = await invoices_repo.set_status(db, invoice, payload.status, payload.void_reason)
     await db.commit()
-    return _to_out(invoice)
+    return await _to_out(db, invoice)
 
 
 @router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -123,7 +130,32 @@ async def share_invoice(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     await invoices_repo.ensure_public_token(db, invoice)
     await db.commit()
-    return _to_out(invoice)
+    return await _to_out(db, invoice)
+
+
+@router.get("/{invoice_id}/payments", response_model=list[InvoicePaymentOut])
+async def list_invoice_payments(
+    invoice_id: uuid.UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> list[InvoicePaymentOut]:
+    invoice = await invoices_repo.get_by_id(db, tenant.id, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    rows = await payments_repo.list_for_invoice(db, tenant.id, invoice_id)
+    return [
+        InvoicePaymentOut(
+            id=payment.id,
+            amount=payment.amount,
+            allocated_amount=allocated_amount,
+            method=payment.method,
+            reference_no=payment.reference_no,
+            payment_date=payment.payment_date,
+            notes=payment.notes,
+            voided_at=payment.voided_at,
+        )
+        for payment, allocated_amount in rows
+    ]
 
 
 @router.get("/{invoice_id}/pdf")

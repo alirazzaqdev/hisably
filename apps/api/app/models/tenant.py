@@ -41,6 +41,7 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     bank_iban: Mapped[str | None] = mapped_column(String(64), nullable=True)
     contact_person: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Stamp/signature images, printed on invoice footers when enabled per doc type.
     stamp_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
