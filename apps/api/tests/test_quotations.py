@@ -43,6 +43,27 @@ async def test_new_quotation_starts_as_draft(client, auth_headers):
     assert quotation["effective_quotation_status"] == "draft"
 
 
+async def test_quotation_pdf_renders_with_quotation_labels(client, auth_headers, db_session):
+    customer_id = await _create_customer(client, auth_headers)
+    quotation = await _create_quotation(client, auth_headers, customer_id, due_date="2026-12-01")
+    await _set_quotation_status(db_session, quotation["id"], QuotationStatus.APPROVED)
+
+    pdf_resp = await client.get(f"/api/v1/invoices/{quotation['id']}/pdf", headers=auth_headers)
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"] == "application/pdf"
+    assert pdf_resp.content[:4] == b"%PDF"
+
+    share_resp = await client.post(f"/api/v1/invoices/{quotation['id']}/share", headers=auth_headers)
+    assert share_resp.status_code == 200
+    token = share_resp.json()["public_token"]
+    assert token
+
+    public_pdf_resp = await client.get(f"/api/v1/public/invoices/{token}/pdf")
+    assert public_pdf_resp.status_code == 200
+    assert public_pdf_resp.headers["content-type"] == "application/pdf"
+    assert public_pdf_resp.content[:4] == b"%PDF"
+
+
 async def test_quotation_counts_and_listing_by_status(client, auth_headers):
     customer_id = await _create_customer(client, auth_headers)
     draft = await _create_quotation(client, auth_headers, customer_id)
@@ -71,6 +92,28 @@ async def test_draft_cannot_jump_to_approved(client, auth_headers):
         f"/api/v1/quotations/{quotation['id']}/status", json={"status": "approved"}, headers=auth_headers
     )
     assert bad_resp.status_code == 409
+
+
+async def test_draft_quotation_can_be_finalized_to_pending(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    quotation = await _create_quotation(client, auth_headers, customer_id)
+
+    missing_due_resp = await client.patch(
+        f"/api/v1/quotations/{quotation['id']}/status", json={"status": "pending"}, headers=auth_headers
+    )
+    assert missing_due_resp.status_code == 422
+
+    due_date = (date.today() + timedelta(days=14)).isoformat()
+    finalize_resp = await client.patch(
+        f"/api/v1/quotations/{quotation['id']}/status",
+        json={"status": "pending", "due_date": due_date},
+        headers=auth_headers,
+    )
+    assert finalize_resp.status_code == 200
+    finalized = finalize_resp.json()
+    assert finalized["quotation_status"] == "pending"
+    assert finalized["effective_quotation_status"] == "pending"
+    assert finalized["due_date"] == due_date
 
 
 async def test_pending_quotation_can_be_approved_and_rejected(client, auth_headers, db_session):

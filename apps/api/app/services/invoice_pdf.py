@@ -19,6 +19,7 @@ from app.models.enums import InvoiceType, PdfTemplate
 from app.models.invoice import Invoice
 from app.models.party import Customer
 from app.models.tenant import Tenant
+from app.repositories.invoices import effective_quotation_status
 
 DEFAULT_ACCENT_COLORS = {
     PdfTemplate.MINIMAL: "#0f766e",
@@ -48,9 +49,12 @@ LABELS = {
     "tax_invoice": ("Tax Invoice", "فاتورة ضريبية"),
     "invoice": ("Invoice", "فاتورة"),
     "proforma_invoice": ("Proforma Invoice", "فاتورة مبدئية"),
+    "quotation": ("Quotation", "عرض سعر"),
     "invoice_no": ("Invoice #", "رقم الفاتورة"),
+    "quotation_no": ("Quotation #", "رقم عرض السعر"),
     "issue_date": ("Issue date", "تاريخ الإصدار"),
     "due_date": ("Due date", "تاريخ الاستحقاق"),
+    "valid_until": ("Valid until", "صالح حتى"),
     "status": ("Status", "الحالة"),
     "thank_you": ("Thank you for your business.", "شكراً لتعاملكم معنا."),
     "trn": ("TRN", "الرقم الضريبي"),
@@ -71,6 +75,10 @@ STATUS_LABELS = {
     "paid": ("Paid", "مدفوعة"),
     "overdue": ("Overdue", "متأخرة"),
     "void": ("Void", "ملغاة"),
+    "pending": ("Pending", "قيد الانتظار"),
+    "approved": ("Approved", "معتمد"),
+    "rejected": ("Rejected", "مرفوض"),
+    "expired": ("Expired", "منتهي الصلاحية"),
 }
 
 # Arabic + Arabic presentation forms unicode ranges.
@@ -162,6 +170,7 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
     language = invoice.language
     is_arabic = _is_arabic_only(language)
     is_proforma = invoice.type == InvoiceType.PROFORMA
+    is_quotation = invoice.type == InvoiceType.QUOTATION
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -211,13 +220,15 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         alignment=TA_CENTER,
     )
 
-    if is_proforma:
+    if is_quotation:
+        label = _label("quotation", language)
+    elif is_proforma:
         label = _label("proforma_invoice", language)
     elif tenant.vat_registered:
         label = _label("tax_invoice", language)
     else:
         label = _label("invoice", language)
-    if invoice.status.value == "void":
+    if not is_quotation and invoice.status.value == "void":
         label = f"VOID {label}" if not is_arabic else f"{label} - VOID"
 
     elements: list = []
@@ -569,18 +580,26 @@ def _business_details(tenant: Tenant, language) -> str:
 
 def _invoice_details(invoice: Invoice, language) -> str:
     number = invoice.invoice_number or invoice.draft_number
+    is_quotation = invoice.type == InvoiceType.QUOTATION
+    number_label = "quotation_no" if is_quotation else "invoice_no"
     lines = [
-        f"<b>{_label('invoice_no', language)}:</b> {number}",
+        f"<b>{_label(number_label, language)}:</b> {number}",
         f"<b>{_label('issue_date', language)}:</b> {invoice.issue_date.isoformat()}",
     ]
     if invoice.due_date:
-        lines.append(f"<b>{_label('due_date', language)}:</b> {invoice.due_date.isoformat()}")
+        due_label = "valid_until" if is_quotation else "due_date"
+        lines.append(f"<b>{_label(due_label, language)}:</b> {invoice.due_date.isoformat()}")
     if invoice.type == InvoiceType.PROFORMA:
         if invoice.lpo_no:
             lines.append(f"<b>{_label('lpo_no', language)}:</b> {_rtl(invoice.lpo_no)}")
         if invoice.project_villa_no:
             lines.append(f"<b>{_label('villa_no', language)}:</b> {_rtl(invoice.project_villa_no)}")
-    lines.append(f"<b>{_label('status', language)}:</b> {_status_label(invoice.status.value, language)}")
+    if is_quotation:
+        status_value = effective_quotation_status(invoice)
+        status_label_value = status_value.value if status_value else "draft"
+    else:
+        status_label_value = invoice.status.value
+    lines.append(f"<b>{_label('status', language)}:</b> {_status_label(status_label_value, language)}")
     return "<br/>".join(lines)
 
 

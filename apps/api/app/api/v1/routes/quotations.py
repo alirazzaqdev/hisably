@@ -15,10 +15,10 @@ from app.schemas.invoice import InvoiceLineItemOut, InvoiceOut, QuotationCounts,
 
 router = APIRouter(prefix="/quotations", tags=["quotations"])
 
-# Manual status transitions allowed via the row-action menu. DRAFT -> PENDING
-# happens on finalize (a later step), and PENDING -> EXPIRED happens
-# automatically based on due_date, not through this endpoint.
+# Manual status transitions allowed via the row-action menu. PENDING -> EXPIRED
+# happens automatically based on due_date, not through this endpoint.
 ALLOWED_TRANSITIONS: dict[QuotationStatus, set[QuotationStatus]] = {
+    QuotationStatus.DRAFT: {QuotationStatus.PENDING},
     QuotationStatus.PENDING: {QuotationStatus.APPROVED, QuotationStatus.REJECTED},
     QuotationStatus.EXPIRED: {QuotationStatus.PENDING},
 }
