@@ -7,14 +7,18 @@ import { Plus, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import { customersApi } from "@/lib/api/customers";
+
+const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["customers", search],
-    queryFn: () => customersApi.list({ search: search || undefined, pageSize: 50 }),
+    queryKey: ["customers", search, page],
+    queryFn: () => customersApi.list({ search: search || undefined, page, pageSize: PAGE_SIZE }),
   });
 
   return (
@@ -36,7 +40,10 @@ export default function CustomersPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search by name, phone, or email"
           className="pl-9"
         />
@@ -118,6 +125,8 @@ export default function CustomersPage() {
               </div>
             ))}
           </div>
+
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />
         </>
       )}
     </div>

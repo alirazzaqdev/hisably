@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +31,7 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
 
   const [form, setForm] = useState<CustomerInput>({
     name: customer?.name ?? "",
+    name_ar: customer?.name_ar ?? "",
     phone: customer?.phone ?? "",
     email: customer?.email ?? "",
     trn: customer?.trn ?? "",
@@ -81,14 +92,25 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              required
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                required
+                value={form.name}
+                onChange={(e) => update("name", e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="name_ar">Name (Arabic)</Label>
+              <Input
+                id="name_ar"
+                dir="rtl"
+                value={form.name_ar ?? ""}
+                onChange={(e) => update("name_ar", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -163,14 +185,36 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
               </Button>
             </div>
             {isEditing && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
-              >
-                Delete
-              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="destructive" disabled={deleteMutation.isPending}>
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete customer?</DialogTitle>
+                    <DialogDescription>
+                      This will permanently remove {customer?.name}. This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="secondary">
+                        Cancel
+                      </Button>
+                    </DialogClose>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => deleteMutation.mutate()}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </form>

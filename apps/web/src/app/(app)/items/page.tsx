@@ -7,10 +7,13 @@ import { AlertTriangle, Package, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { itemCategoriesApi } from "@/lib/api/item-categories";
 import { itemsApi, type Item } from "@/lib/api/items";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 20;
 
 function isLowStock(item: Item): boolean {
   return (
@@ -24,6 +27,7 @@ function isLowStock(item: Item): boolean {
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: categories } = useQuery({
     queryKey: ["item-categories"],
@@ -31,8 +35,9 @@ export default function ItemsPage() {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["items", search, categoryId],
-    queryFn: () => itemsApi.list({ search: search || undefined, categoryId: categoryId || undefined, pageSize: 50 }),
+    queryKey: ["items", search, categoryId, page],
+    queryFn: () =>
+      itemsApi.list({ search: search || undefined, categoryId: categoryId || undefined, page, pageSize: PAGE_SIZE }),
   });
 
   const categoryNameById = new Map(categories?.map((category) => [category.id, category.name]));
@@ -65,12 +70,22 @@ export default function ItemsPage() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search by name or SKU"
             className="pl-9"
           />
         </div>
-        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="max-w-xs">
+        <Select
+          value={categoryId}
+          onChange={(e) => {
+            setCategoryId(e.target.value);
+            setPage(1);
+          }}
+          className="max-w-xs"
+        >
           <option value="">All categories</option>
           {categories?.map((category) => (
             <option key={category.id} value={category.id}>
@@ -191,6 +206,8 @@ export default function ItemsPage() {
               );
             })}
           </div>
+
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onPageChange={setPage} />
         </>
       )}
     </div>
