@@ -18,6 +18,7 @@ import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api-client";
 import { attachmentsApi } from "@/lib/api/attachments";
 import { customersApi } from "@/lib/api/customers";
@@ -556,14 +557,17 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             </Select>
                           </td>
                           <td className="px-3 py-2">
-                            <Input
+                            <Textarea
                               required
+                              rows={2}
+                              className="min-w-[14rem]"
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
                             {language !== "en" && (
-                              <Input
-                                className="mt-1"
+                              <Textarea
+                                rows={2}
+                                className="mt-1 min-w-[14rem]"
                                 dir="rtl"
                                 placeholder="الوصف بالعربية"
                                 value={line.description_ar ?? ""}
@@ -641,14 +645,17 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             </Select>
                           </td>
                           <td className="px-3 py-2">
-                            <Input
+                            <Textarea
                               required
+                              rows={2}
+                              className="min-w-[14rem]"
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
                             {language !== "en" && (
-                              <Input
-                                className="mt-1"
+                              <Textarea
+                                rows={2}
+                                className="mt-1 min-w-[14rem]"
                                 dir="rtl"
                                 placeholder="الوصف بالعربية"
                                 value={line.description_ar ?? ""}
@@ -809,11 +816,11 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
             <div className="flex flex-col gap-4 sm:w-1/2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="notes">Notes</Label>
-                <Input id="notes" value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
+                <Textarea id="notes" rows={3} value={notes ?? ""} onChange={(e) => setNotes(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="terms">Terms &amp; conditions</Label>
-                <Input id="terms" value={terms ?? ""} onChange={(e) => setTerms(e.target.value)} />
+                <Textarea id="terms" rows={3} value={terms ?? ""} onChange={(e) => setTerms(e.target.value)} />
               </div>
               {type === "quotation" && (
                 <div className="flex flex-col gap-1.5">
