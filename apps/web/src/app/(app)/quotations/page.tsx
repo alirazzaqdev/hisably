@@ -99,6 +99,9 @@ export default function QuotationsPage() {
     statusMutation.mutate({ id: renewingId, status: "pending", dueDate: renewDate });
   }
 
+  const renewingQuotation = data?.items.find((q) => q.id === renewingId);
+  const renewingIsDraft = (renewingQuotation?.effective_quotation_status ?? renewingQuotation?.quotation_status) === "draft";
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -206,6 +209,19 @@ export default function QuotationsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {effectiveStatus === "draft" && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={statusMutation.isPending}
+                              onClick={() => {
+                                setRenewingId(quotation.id);
+                                setRenewDate("");
+                              }}
+                            >
+                              Finalize
+                            </Button>
+                          )}
                           {effectiveStatus === "pending" && (
                             <>
                               <Button
@@ -273,8 +289,22 @@ export default function QuotationsPage() {
                       {quotation.currency} {quotation.grand_total}
                     </span>
                   </div>
-                  {(effectiveStatus === "pending" || effectiveStatus === "expired") && (
+                  {(effectiveStatus === "draft" || effectiveStatus === "pending" || effectiveStatus === "expired") && (
                     <div className="flex items-center gap-2 border-t border-border pt-2">
+                      {effectiveStatus === "draft" && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={statusMutation.isPending}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setRenewingId(quotation.id);
+                            setRenewDate("");
+                          }}
+                        >
+                          Finalize
+                        </Button>
+                      )}
                       {effectiveStatus === "pending" && (
                         <>
                           <Button
@@ -329,9 +359,11 @@ export default function QuotationsPage() {
       <Dialog open={renewingId !== null} onOpenChange={(open) => !open && setRenewingId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Renew quotation</DialogTitle>
+            <DialogTitle>{renewingIsDraft ? "Finalize quotation" : "Renew quotation"}</DialogTitle>
             <DialogDescription>
-              This quotation expired. Choose a new validity date to move it back to Pending.
+              {renewingIsDraft
+                ? "Set a validity date to send this quotation to the customer as Pending."
+                : "This quotation expired. Choose a new validity date to move it back to Pending."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">

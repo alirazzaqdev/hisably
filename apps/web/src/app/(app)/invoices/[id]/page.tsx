@@ -7,10 +7,30 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, MessageCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toast";
+import { ApiError } from "@/lib/api-client";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
-import { invoicesApi, type InvoiceStatus } from "@/lib/api/invoices";
+import { invoicesApi, type InvoiceStatus, type QuotationStatus } from "@/lib/api/invoices";
+import { quotationsApi } from "@/lib/api/quotations";
 import { InvoiceStatusBadge } from "../status-badge";
+import { QuotationStatusBadge } from "../../quotations/status-badge";
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError && typeof error.detail === "string") return error.detail;
+  return fallback;
+}
 
 const NEXT_STATUS: Partial<Record<InvoiceStatus, { label: string; status: InvoiceStatus }[]>> = {
   draft: [{ label: "Mark as sent", status: "sent" }],
@@ -27,6 +47,8 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
   const queryClient = useQueryClient();
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [validityOpen, setValidityOpen] = useState(false);
+  const [validityDate, setValidityDate] = useState("");
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ["invoices", id],
@@ -69,6 +91,27 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     },
   });
 
+  const quotationStatusMutation = useMutation({
+    mutationFn: ({ status, dueDate }: { status: QuotationStatus; dueDate?: string }) =>
+      quotationsApi.setStatus(id, status, dueDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices", id] });
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      queryClient.invalidateQueries({ queryKey: ["quotation-counts"] });
+      toast({ title: "Quotation updated", variant: "success" });
+      setValidityOpen(false);
+      setValidityDate("");
+    },
+    onError: (error) => {
+      toast({ title: "Couldn't update quotation", description: errorMessage(error, "Try again."), variant: "danger" });
+    },
+  });
+
+  function submitValidityDate() {
+    if (!validityDate) return;
+    quotationStatusMutation.mutate({ status: "pending", dueDate: validityDate });
+  }
+
   async function downloadPdf() {
     if (!invoice) return;
     setDownloading(true);
@@ -99,13 +142,19 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     return <p className="text-body text-muted-foreground">Loading…</p>;
   }
 
-  const canEdit = invoice.status === "draft" || invoice.status === "sent";
-  const canVoid = invoice.status !== "void";
-  const canDelete = invoice.status === "draft";
+  const isQuotation = invoice.type === "quotation";
+  const quotationStatus: QuotationStatus = invoice.effective_quotation_status ?? invoice.quotation_status ?? "draft";
+
+  const canEdit = isQuotation
+    ? quotationStatus === "draft"
+    : invoice.status === "draft" || invoice.status === "sent";
+  const canVoid = !isQuotation && invoice.status !== "void";
+  const canDelete = isQuotation ? quotationStatus === "draft" : invoice.status === "draft";
   const canCreditNote = invoice.type === "tax_invoice" && invoice.status !== "draft" && invoice.status !== "void";
   const canDebitNote = invoice.type === "purchase_bill" && invoice.status !== "draft" && invoice.status !== "void";
-  const canConvertToInvoice = (invoice.type === "quotation" || invoice.type === "proforma") && invoice.status !== "void";
-  const canConvertToProforma = invoice.type === "quotation" && invoice.status !== "void";
+  const canConvertToInvoice =
+    (invoice.type === "proforma" && invoice.status !== "void") || (isQuotation && quotationStatus === "approved");
+  const canConvertToProforma = isQuotation && quotationStatus === "approved";
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,7 +162,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         <div>
           <h1 className="text-h1 text-foreground">{invoice.invoice_number ?? invoice.draft_number}</h1>
           <div className="mt-1">
-            <InvoiceStatusBadge status={invoice.status} />
+            {isQuotation ? <QuotationStatusBadge status={quotationStatus} /> : <InvoiceStatusBadge status={invoice.status} />}
           </div>
         </div>
         <div className="flex gap-2">
@@ -224,7 +273,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 <span className="text-foreground">{invoice.issue_date}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Due date</span>
+                <span className="text-muted-foreground">{isQuotation ? "Valid until" : "Due date"}</span>
                 <span className="text-foreground">{invoice.due_date ?? "—"}</span>
               </div>
               {invoice.void_reason && (
@@ -241,16 +290,59 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
               <CardTitle>Actions</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {NEXT_STATUS[invoice.status]?.map((action) => (
+              {isQuotation && quotationStatus === "draft" && (
                 <Button
-                  key={action.status}
                   variant="secondary"
-                  onClick={() => statusMutation.mutate(action.status)}
-                  disabled={statusMutation.isPending}
+                  onClick={() => {
+                    setValidityDate("");
+                    setValidityOpen(true);
+                  }}
+                  disabled={quotationStatusMutation.isPending}
                 >
-                  {action.label}
+                  Finalize quotation
                 </Button>
-              ))}
+              )}
+              {isQuotation && quotationStatus === "pending" && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => quotationStatusMutation.mutate({ status: "approved" })}
+                    disabled={quotationStatusMutation.isPending}
+                  >
+                    Mark as approved
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => quotationStatusMutation.mutate({ status: "rejected" })}
+                    disabled={quotationStatusMutation.isPending}
+                  >
+                    Mark as rejected
+                  </Button>
+                </>
+              )}
+              {isQuotation && quotationStatus === "expired" && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setValidityDate("");
+                    setValidityOpen(true);
+                  }}
+                  disabled={quotationStatusMutation.isPending}
+                >
+                  Renew quotation
+                </Button>
+              )}
+              {!isQuotation &&
+                NEXT_STATUS[invoice.status]?.map((action) => (
+                  <Button
+                    key={action.status}
+                    variant="secondary"
+                    onClick={() => statusMutation.mutate(action.status)}
+                    disabled={statusMutation.isPending}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
               {canConvertToProforma && (
                 <Button asChild variant="secondary">
                   <Link href={`/invoices/new?from=${invoice.id}&type=proforma`}>Convert to proforma</Link>
@@ -289,6 +381,41 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
           </Card>
         </div>
       </div>
+
+      {isQuotation && (
+        <Dialog open={validityOpen} onOpenChange={(open) => !open && setValidityOpen(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{quotationStatus === "expired" ? "Renew quotation" : "Finalize quotation"}</DialogTitle>
+              <DialogDescription>
+                {quotationStatus === "expired"
+                  ? "This quotation expired. Choose a new validity date to move it back to Pending."
+                  : "Set a validity date to send this quotation to the customer as Pending."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="validity_date">Valid until</Label>
+              <Input
+                id="validity_date"
+                type="date"
+                value={validityDate}
+                onChange={(e) => setValidityDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="button" onClick={submitValidityDate} disabled={!validityDate || quotationStatusMutation.isPending}>
+                {quotationStatusMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
