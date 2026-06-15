@@ -23,6 +23,7 @@ class TenantUpdate(BaseModel):
     address: str | None = Field(default=None, max_length=500)
     logo_url: str | None = None
     invoice_prefix: str | None = Field(default=None, max_length=16)
+    quotation_prefix: str | None = Field(default=None, max_length=16)
     default_vat_category: VatCategory | None = None
     industry_profile: str | None = Field(default=None, max_length=32)
     enabled_fields: dict[str, bool] | None = None
@@ -50,6 +51,7 @@ class TenantOut(BaseModel):
     address: str | None
     logo_url: str | None
     invoice_prefix: str
+    quotation_prefix: str
     default_vat_category: VatCategory
     industry_profile: str
     enabled_fields: dict[str, bool]

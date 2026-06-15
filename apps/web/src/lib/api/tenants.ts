@@ -8,6 +8,7 @@ export interface TenantUpdateInput {
   address?: string | null;
   logo_url?: string | null;
   invoice_prefix?: string;
+  quotation_prefix?: string;
   default_vat_category?: VatCategory;
   industry_profile?: string;
   enabled_fields?: Record<string, boolean>;

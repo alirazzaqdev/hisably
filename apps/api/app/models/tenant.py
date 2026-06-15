@@ -16,6 +16,7 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     invoice_prefix: Mapped[str] = mapped_column(String(16), default="INV-")
+    quotation_prefix: Mapped[str] = mapped_column(String(16), default="QUO-")
     default_vat_category: Mapped[VatCategory] = mapped_column(
         Enum(VatCategory, native_enum=False), default=VatCategory.STANDARD
     )

@@ -102,7 +102,10 @@ async def _next_invoice_number(db: AsyncSession, tenant: Tenant, invoice_type) -
 
     number = sequence.next_number
     sequence.next_number += 1
-    prefix = tenant.invoice_prefix or "INV-"
+    if invoice_type == InvoiceType.QUOTATION:
+        prefix = tenant.quotation_prefix or "QUO-"
+    else:
+        prefix = tenant.invoice_prefix or "INV-"
     return f"{prefix}{number:04d}"
 
 

@@ -41,6 +41,7 @@ export default function SettingsPage() {
         vat_registered: tenant.vat_registered,
         address: tenant.address ?? "",
         invoice_prefix: tenant.invoice_prefix,
+        quotation_prefix: tenant.quotation_prefix,
         default_vat_category: tenant.default_vat_category,
         cheque_payee_name: tenant.cheque_payee_name ?? "",
         bank_name: tenant.bank_name ?? "",
@@ -111,6 +112,14 @@ export default function SettingsPage() {
                   id="invoice_prefix"
                   value={form.invoice_prefix ?? ""}
                   onChange={(e) => update("invoice_prefix", e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="quotation_prefix">Quotation prefix</Label>
+                <Input
+                  id="quotation_prefix"
+                  value={form.quotation_prefix ?? ""}
+                  onChange={(e) => update("quotation_prefix", e.target.value)}
                 />
               </div>
             </div>
