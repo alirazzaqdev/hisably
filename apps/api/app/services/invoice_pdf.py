@@ -144,6 +144,19 @@ def _is_arabic_only(language) -> bool:
     return value == "ar"
 
 
+def _line_description(line, language) -> str:
+    """Render a line item's description, including its Arabic translation
+    when the document language is Arabic or bilingual."""
+    value = language.value if hasattr(language, "value") else language
+    primary = line.description or ""
+    secondary = getattr(line, "description_ar", None)
+    if value == "ar":
+        return _rtl(secondary or primary)
+    if value == "bilingual" and secondary:
+        return f"{_rtl(primary)}<br/>{_rtl(secondary)}"
+    return _rtl(primary)
+
+
 def _label(key: str, language) -> str:
     en, ar = LABELS[key]
     value = language.value if hasattr(language, "value") else language
@@ -363,7 +376,7 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
             body_rows_raw.append(
                 [
                     (str(idx), "CENTER"),
-                    (_rtl(line.description), "LEFT"),
+                    (_line_description(line, language), "LEFT"),
                     (_format_decimal(line.quantity), "RIGHT"),
                     (_format_decimal(final_payment), "RIGHT"),
                     (f"{line.unit_price:.2f}", "RIGHT"),
@@ -395,7 +408,7 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
             body_rows_raw.append(
                 [
                     (str(idx), "CENTER"),
-                    (_rtl(line.description), "LEFT"),
+                    (_line_description(line, language), "LEFT"),
                     (size_cols[0], "CENTER"),
                     (size_cols[1], "CENTER"),
                     (_format_decimal(line.quantity), "RIGHT"),
@@ -663,7 +676,14 @@ def _bank_details_footer(tenant: Tenant, language) -> str | None:
 
 
 def _customer_details(customer: Customer, language) -> str:
-    lines = [f"<b>{_rtl(customer.name, bold_font=True)}</b>"]
+    value = language.value if hasattr(language, "value") else language
+    name_ar = getattr(customer, "name_ar", None)
+    if value == "ar" and name_ar:
+        lines = [f"<b>{_rtl(name_ar, bold_font=True)}</b>"]
+    elif value == "bilingual" and name_ar:
+        lines = [f"<b>{_rtl(customer.name, bold_font=True)}</b>", f"<b>{_rtl(name_ar, bold_font=True)}</b>"]
+    else:
+        lines = [f"<b>{_rtl(customer.name, bold_font=True)}</b>"]
     if customer.billing_address:
         lines.append(_rtl(customer.billing_address))
     if customer.trn:

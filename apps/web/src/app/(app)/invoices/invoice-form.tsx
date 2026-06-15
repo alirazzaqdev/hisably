@@ -132,6 +132,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       ? invoice.line_items.map((li) => ({
           item_id: li.item_id,
           description: li.description,
+          description_ar: li.description_ar,
           quantity: li.quantity,
           width_mm: li.width_mm,
           height_mm: li.height_mm,
@@ -188,6 +189,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           return {
             item_id: li.item_id,
             description: li.description,
+            description_ar: li.description_ar,
             quantity: "1",
             unit_price: computed.gross.toFixed(2),
             final_payment_factor: "1",
@@ -197,6 +199,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         return {
           item_id: li.item_id,
           description: li.description,
+          description_ar: li.description_ar,
           quantity: li.quantity,
           width_mm: li.width_mm,
           height_mm: li.height_mm,
@@ -273,6 +276,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
               ...line,
               item_id: item.id,
               description: item.name,
+              description_ar: item.name_ar,
               unit_price: priceByItemId.get(item.id) ?? item.sale_price,
               vat_category: item.vat_category,
             }
@@ -303,6 +307,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           ...next[targetIndex],
           item_id: item.id,
           description: item.name,
+          description_ar: item.name_ar,
           unit_price: priceByItemId.get(item.id) ?? item.sale_price,
           vat_category: item.vat_category,
         };
@@ -556,6 +561,15 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
+                            {language !== "en" && (
+                              <Input
+                                className="mt-1"
+                                dir="rtl"
+                                placeholder="الوصف بالعربية"
+                                value={line.description_ar ?? ""}
+                                onChange={(e) => updateLine(index, { description_ar: e.target.value || null })}
+                              />
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             <Input
@@ -632,6 +646,15 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
+                            {language !== "en" && (
+                              <Input
+                                className="mt-1"
+                                dir="rtl"
+                                placeholder="الوصف بالعربية"
+                                value={line.description_ar ?? ""}
+                                onChange={(e) => updateLine(index, { description_ar: e.target.value || null })}
+                              />
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             {showSizeRow ? (
