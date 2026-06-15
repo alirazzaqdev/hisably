@@ -166,3 +166,9 @@ async def test_onboarding_business(client, captured_otps):
     assert body["currency"] == "AED"
     assert body["vat_registered"] is True
     assert body["invoice_prefix"] == "ACM-"
+
+    accounts_resp = await client.get("/api/v1/accounts", headers=headers)
+    assert accounts_resp.status_code == 200
+    accounts = accounts_resp.json()
+    assert {a["name"] for a in accounts} == {"Cash", "Bank"}
+    assert {a["type"] for a in accounts} == {"cash", "bank"}

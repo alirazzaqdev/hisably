@@ -32,6 +32,7 @@ async def update_business(db: AsyncSession, tenant: Tenant, payload: OnboardingB
     ).scalar_one_or_none()
     if existing_account is None:
         db.add(Account(tenant_id=tenant.id, name="Cash", type=AccountType.CASH))
+        db.add(Account(tenant_id=tenant.id, name="Bank", type=AccountType.BANK))
 
     await db.commit()
     await db.refresh(tenant)
