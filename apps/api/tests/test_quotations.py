@@ -43,6 +43,12 @@ async def test_new_quotation_starts_as_draft(client, auth_headers):
     assert quotation["effective_quotation_status"] == "draft"
 
 
+_ONE_PX_PNG_DATA_URI = (
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+    "+A8AAQUBAScY42YAAAAASUVORK5CgII="
+)
+
+
 async def test_quotation_pdf_renders_with_quotation_labels(client, auth_headers, db_session):
     customer_id = await _create_customer(client, auth_headers)
     quotation = await _create_quotation(client, auth_headers, customer_id, due_date="2026-12-01")
@@ -62,6 +68,28 @@ async def test_quotation_pdf_renders_with_quotation_labels(client, auth_headers,
     assert public_pdf_resp.status_code == 200
     assert public_pdf_resp.headers["content-type"] == "application/pdf"
     assert public_pdf_resp.content[:4] == b"%PDF"
+
+
+async def test_quotation_with_site_image_renders_pdf(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    payload = {
+        "type": "quotation",
+        "customer_id": customer_id,
+        "issue_date": "2026-06-01",
+        "site_image_url": _ONE_PX_PNG_DATA_URI,
+        "line_items": [
+            {"description": "Glass partition", "quantity": "1", "unit_price": "500.00", "vat_category": "standard"},
+        ],
+    }
+    create_resp = await client.post("/api/v1/invoices", json=payload, headers=auth_headers)
+    assert create_resp.status_code == 201
+    quotation = create_resp.json()
+    assert quotation["site_image_url"] == _ONE_PX_PNG_DATA_URI
+
+    pdf_resp = await client.get(f"/api/v1/invoices/{quotation['id']}/pdf", headers=auth_headers)
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"] == "application/pdf"
+    assert pdf_resp.content[:4] == b"%PDF"
 
 
 async def test_quotation_counts_and_listing_by_status(client, auth_headers):

@@ -255,6 +255,17 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 <p className="text-body-sm text-muted-foreground">{invoice.terms}</p>
               </div>
             )}
+            {isQuotation && invoice.site_image_url && (
+              <div className="mt-4">
+                <p className="text-body-sm font-medium text-foreground">Site image</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={invoice.site_image_url}
+                  alt="Site"
+                  className="mt-2 max-h-64 rounded-md border border-border object-contain"
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

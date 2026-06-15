@@ -144,6 +144,7 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         project_villa_no=payload.project_villa_no,
         bill_to_address=payload.bill_to_address,
         ship_to_address=payload.ship_to_address,
+        site_image_url=payload.site_image_url,
         converted_from_id=payload.converted_from_id,
         **summary,
     )

@@ -74,6 +74,7 @@ export interface Invoice {
   project_villa_no: string | null;
   bill_to_address: string | null;
   ship_to_address: string | null;
+  site_image_url: string | null;
   void_reason: string | null;
   converted_from_id: string | null;
   public_token: string | null;
@@ -100,6 +101,7 @@ export interface InvoiceInput {
   project_villa_no?: string | null;
   bill_to_address?: string | null;
   ship_to_address?: string | null;
+  site_image_url?: string | null;
   line_items: InvoiceLineItemInput[];
   converted_from_id?: string | null;
 }

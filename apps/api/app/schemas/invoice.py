@@ -64,6 +64,7 @@ class InvoiceCreate(BaseModel):
     project_villa_no: str | None = Field(default=None, max_length=128)
     bill_to_address: str | None = Field(default=None, max_length=500)
     ship_to_address: str | None = Field(default=None, max_length=500)
+    site_image_url: str | None = Field(default=None, max_length=500)
     line_items: list[InvoiceLineItemInput] = Field(default_factory=list, min_length=1)
     client_uuid: uuid.UUID | None = None
     converted_from_id: uuid.UUID | None = None
@@ -86,6 +87,7 @@ class InvoiceUpdate(BaseModel):
     project_villa_no: str | None = Field(default=None, max_length=128)
     bill_to_address: str | None = Field(default=None, max_length=500)
     ship_to_address: str | None = Field(default=None, max_length=500)
+    site_image_url: str | None = Field(default=None, max_length=500)
     line_items: list[InvoiceLineItemInput] | None = Field(default=None, min_length=1)
 
 
@@ -122,6 +124,7 @@ class InvoiceOut(BaseModel):
     project_villa_no: str | None
     bill_to_address: str | None
     ship_to_address: str | None
+    site_image_url: str | None
     void_reason: str | None
     converted_from_id: uuid.UUID | None
     public_token: str | None

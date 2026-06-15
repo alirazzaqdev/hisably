@@ -1,3 +1,4 @@
+import base64
 import io
 import re
 from decimal import Decimal
@@ -46,6 +47,7 @@ LABELS = {
     "payable_amount": ("Payable Amount", "المبلغ المستحق"),
     "notes": ("Notes", "ملاحظات"),
     "terms": ("Terms & Conditions", "الشروط والأحكام"),
+    "site_image": ("Site image", "صورة الموقع"),
     "tax_invoice": ("Tax Invoice", "فاتورة ضريبية"),
     "invoice": ("Invoice", "فاتورة"),
     "proforma_invoice": ("Proforma Invoice", "فاتورة مبدئية"),
@@ -488,6 +490,12 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         elements.append(Paragraph(_label("terms", language), heading_style))
         elements.append(Paragraph(_rtl(invoice.terms).replace("\n", "<br/>"), normal))
 
+    site_image = _load_site_image(invoice.site_image_url)
+    if site_image is not None:
+        elements.append(Spacer(1, 6 * mm))
+        elements.append(Paragraph(_label("site_image", language), heading_style))
+        elements.append(site_image)
+
     if is_proforma:
         footer_text = _proforma_footer_details(tenant, language)
         if footer_text:
@@ -533,14 +541,29 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
     return buffer.getvalue()
 
 
+def _load_image_bytes(url: str) -> bytes | None:
+    if url.startswith("data:"):
+        try:
+            _, encoded = url.split(",", 1)
+            return base64.b64decode(encoded)
+        except Exception:
+            return None
+    try:
+        response = httpx.get(url, timeout=5.0)
+        response.raise_for_status()
+        return response.content
+    except Exception:
+        return None
+
+
 def _load_logo(logo_url: str | None) -> Image | None:
     if not logo_url:
         return None
+    data = _load_image_bytes(logo_url)
+    if data is None:
+        return None
     try:
-        response = httpx.get(logo_url, timeout=5.0)
-        response.raise_for_status()
-        image = Image(io.BytesIO(response.content), width=25 * mm, height=25 * mm, kind="proportional")
-        return image
+        return Image(io.BytesIO(data), width=25 * mm, height=25 * mm, kind="proportional")
     except Exception:
         return None
 
@@ -548,11 +571,11 @@ def _load_logo(logo_url: str | None) -> Image | None:
 def _load_stamp(stamp_url: str | None) -> Image | None:
     if not stamp_url:
         return None
+    data = _load_image_bytes(stamp_url)
+    if data is None:
+        return None
     try:
-        response = httpx.get(stamp_url, timeout=5.0)
-        response.raise_for_status()
-        image = Image(io.BytesIO(response.content), width=25 * mm, height=25 * mm, kind="proportional")
-        return image
+        return Image(io.BytesIO(data), width=25 * mm, height=25 * mm, kind="proportional")
     except Exception:
         return None
 
@@ -560,11 +583,23 @@ def _load_stamp(stamp_url: str | None) -> Image | None:
 def _load_signature(signature_url: str | None) -> Image | None:
     if not signature_url:
         return None
+    data = _load_image_bytes(signature_url)
+    if data is None:
+        return None
     try:
-        response = httpx.get(signature_url, timeout=5.0)
-        response.raise_for_status()
-        image = Image(io.BytesIO(response.content), width=35 * mm, height=18 * mm, kind="proportional")
-        return image
+        return Image(io.BytesIO(data), width=35 * mm, height=18 * mm, kind="proportional")
+    except Exception:
+        return None
+
+
+def _load_site_image(site_image_url: str | None) -> Image | None:
+    if not site_image_url:
+        return None
+    data = _load_image_bytes(site_image_url)
+    if data is None:
+        return None
+    try:
+        return Image(io.BytesIO(data), width=80 * mm, height=60 * mm, kind="proportional")
     except Exception:
         return None
 

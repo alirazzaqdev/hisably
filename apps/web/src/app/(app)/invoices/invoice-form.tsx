@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
+import { attachmentsApi } from "@/lib/api/attachments";
 import { customersApi } from "@/lib/api/customers";
 import { suppliersApi } from "@/lib/api/suppliers";
 import { tenantsApi } from "@/lib/api/tenants";
@@ -121,6 +122,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const [projectVillaNo, setProjectVillaNo] = useState(invoice?.project_villa_no ?? "");
   const [billToAddress, setBillToAddress] = useState(invoice?.bill_to_address ?? "");
   const [shipToAddress, setShipToAddress] = useState(invoice?.ship_to_address ?? "");
+  const [siteImageUrl, setSiteImageUrl] = useState(invoice?.site_image_url ?? "");
+  const [uploadingSiteImage, setUploadingSiteImage] = useState(false);
   const [lines, setLines] = useState<InvoiceLineItemInput[]>(
     invoice?.line_items?.length
       ? invoice.line_items.map((li) => ({
@@ -227,6 +230,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         project_villa_no: type === "proforma" ? projectVillaNo || null : null,
         bill_to_address: type === "proforma" ? billToAddress || null : null,
         ship_to_address: type === "proforma" ? shipToAddress || null : null,
+        site_image_url: type === "quotation" ? siteImageUrl || null : null,
         line_items: lines,
         converted_from_id: convertedFromId,
       };
@@ -304,6 +308,26 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       setBarcodeError(null);
     } catch {
       setBarcodeError(`No item found for barcode "${barcode}"`);
+    }
+  }
+
+  async function handleSiteImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingSiteImage(true);
+    setFormError(null);
+    try {
+      const attachment = await attachmentsApi.upload(file, "quotation_site_image");
+      setSiteImageUrl(attachment.file_url);
+    } catch (error) {
+      if (error instanceof ApiError && typeof error.detail === "string") {
+        setFormError(error.detail);
+      } else {
+        setFormError("Failed to upload image. Please try again.");
+      }
+    } finally {
+      setUploadingSiteImage(false);
+      event.target.value = "";
     }
   }
 
@@ -764,6 +788,32 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                 <Label htmlFor="terms">Terms &amp; conditions</Label>
                 <Input id="terms" value={terms ?? ""} onChange={(e) => setTerms(e.target.value)} />
               </div>
+              {type === "quotation" && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="site_image">Site image</Label>
+                  {siteImageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={siteImageUrl}
+                      alt="Site"
+                      className="h-32 w-full rounded-md border border-border object-cover"
+                    />
+                  )}
+                  <Input
+                    id="site_image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleSiteImageChange}
+                    disabled={uploadingSiteImage}
+                  />
+                  {uploadingSiteImage && <p className="text-body-sm text-muted-foreground">Uploading…</p>}
+                  {siteImageUrl && !uploadingSiteImage && (
+                    <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setSiteImageUrl("")}>
+                      Remove image
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pdf_template">PDF template</Label>
