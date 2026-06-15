@@ -160,6 +160,159 @@ async def test_cheque_payment_tracking_and_bounce(client, auth_headers):
     assert invoice_resp3.json()["status"] == "paid"
 
 
+async def test_void_payment_reverses_balance_and_invoice_status(client, auth_headers):
+    account_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Cash Drawer", "type": "cash", "opening_balance": "0.00"}, headers=auth_headers
+    )
+    account = account_resp.json()
+
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+    invoice_id = invoice["id"]
+
+    payment_resp = await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "account_id": account["id"],
+            "amount": "105.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "allocations": [{"invoice_id": invoice_id, "amount": "105.00"}],
+        },
+        headers=auth_headers,
+    )
+    payment_id = payment_resp.json()["id"]
+
+    account_resp2 = await client.get(f"/api/v1/accounts/{account['id']}", headers=auth_headers)
+    assert account_resp2.json()["current_balance"] == "105.00"
+
+    invoice_resp = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp.json()["status"] == "paid"
+
+    void_resp = await client.patch(
+        f"/api/v1/payments/{payment_id}/void", json={"reason": "Entered by mistake"}, headers=auth_headers
+    )
+    assert void_resp.status_code == 200
+    voided = void_resp.json()
+    assert voided["voided_at"] is not None
+    assert voided["void_reason"] == "Entered by mistake"
+
+    account_resp3 = await client.get(f"/api/v1/accounts/{account['id']}", headers=auth_headers)
+    assert account_resp3.json()["current_balance"] == "0.00"
+
+    invoice_resp2 = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp2.json()["status"] == "sent"
+
+    # A voided payment cannot be voided again or edited.
+    revoid_resp = await client.patch(
+        f"/api/v1/payments/{payment_id}/void", json={"reason": "Again"}, headers=auth_headers
+    )
+    assert revoid_resp.status_code == 400
+
+    edit_resp = await client.patch(
+        f"/api/v1/payments/{payment_id}", json={"notes": "Edit attempt"}, headers=auth_headers
+    )
+    assert edit_resp.status_code == 400
+
+
+async def test_update_payment_fields(client, auth_headers):
+    account_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Cash Drawer", "type": "cash", "opening_balance": "0.00"}, headers=auth_headers
+    )
+    account = account_resp.json()
+    bank_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Main Bank", "type": "bank", "opening_balance": "0.00"}, headers=auth_headers
+    )
+    bank = bank_resp.json()
+
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+
+    payment_resp = await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "account_id": account["id"],
+            "amount": "105.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "reference_no": "REF-1",
+            "allocations": [{"invoice_id": invoice["id"], "amount": "105.00"}],
+        },
+        headers=auth_headers,
+    )
+    payment_id = payment_resp.json()["id"]
+
+    update_resp = await client.patch(
+        f"/api/v1/payments/{payment_id}",
+        json={"account_id": bank["id"], "reference_no": "REF-2", "notes": "Updated note"},
+        headers=auth_headers,
+    )
+    assert update_resp.status_code == 200
+    updated = update_resp.json()
+    assert updated["account_id"] == bank["id"]
+    assert updated["reference_no"] == "REF-2"
+    assert updated["notes"] == "Updated note"
+
+    cash_balance = await client.get(f"/api/v1/accounts/{account['id']}", headers=auth_headers)
+    assert cash_balance.json()["current_balance"] == "0.00"
+    bank_balance = await client.get(f"/api/v1/accounts/{bank['id']}", headers=auth_headers)
+    assert bank_balance.json()["current_balance"] == "105.00"
+
+
+async def test_payments_list_filters(client, auth_headers):
+    account_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Cash Drawer", "type": "cash", "opening_balance": "0.00"}, headers=auth_headers
+    )
+    account = account_resp.json()
+
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+
+    await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "account_id": account["id"],
+            "amount": "50.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "reference_no": "ABC-100",
+            "allocations": [{"invoice_id": invoice["id"], "amount": "50.00"}],
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "amount": "55.00",
+            "method": "bank_transfer",
+            "payment_date": "2026-06-12",
+            "reference_no": "XYZ-200",
+            "allocations": [{"invoice_id": invoice["id"], "amount": "55.00"}],
+        },
+        headers=auth_headers,
+    )
+
+    by_account = await client.get("/api/v1/payments", params={"account_id": account["id"]}, headers=auth_headers)
+    assert by_account.json()["total"] == 1
+
+    by_method = await client.get("/api/v1/payments", params={"method": "bank_transfer"}, headers=auth_headers)
+    assert by_method.json()["total"] == 1
+
+    by_date = await client.get(
+        "/api/v1/payments", params={"date_from": "2026-06-10", "date_to": "2026-06-15"}, headers=auth_headers
+    )
+    assert by_date.json()["total"] == 1
+    assert by_date.json()["items"][0]["reference_no"] == "XYZ-200"
+
+    by_search = await client.get("/api/v1/payments", params={"search": "ABC"}, headers=auth_headers)
+    assert by_search.json()["total"] == 1
+    assert by_search.json()["items"][0]["reference_no"] == "ABC-100"
+
+
 async def test_cheque_status_rejected_for_non_cheque_payment(client, auth_headers):
     customer_id = await _create_customer(client, auth_headers)
     invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")

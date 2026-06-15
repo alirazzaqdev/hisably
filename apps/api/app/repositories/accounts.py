@@ -45,6 +45,7 @@ async def get_balance(db: AsyncSession, tenant_id: uuid.UUID, account: Account) 
                 Payment.tenant_id == tenant_id,
                 Payment.account_id == account.id,
                 Payment.customer_id.is_not(None),
+                Payment.voided_at.is_(None),
             )
         )
     ).scalar_one()
@@ -54,6 +55,7 @@ async def get_balance(db: AsyncSession, tenant_id: uuid.UUID, account: Account) 
                 Payment.tenant_id == tenant_id,
                 Payment.account_id == account.id,
                 Payment.supplier_id.is_not(None),
+                Payment.voided_at.is_(None),
             )
         )
     ).scalar_one()

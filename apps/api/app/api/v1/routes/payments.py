@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +11,15 @@ from app.models.payment import Payment
 from app.models.tenant import Tenant
 from app.repositories import payments as payments_repo
 from app.schemas.common import Page
-from app.schemas.payment import ChequeStatusUpdate, PaymentAllocationOut, PaymentCreate, PaymentOut, ReceivableOut
+from app.schemas.payment import (
+    ChequeStatusUpdate,
+    PaymentAllocationOut,
+    PaymentCreate,
+    PaymentOut,
+    PaymentUpdate,
+    PaymentVoidRequest,
+    ReceivableOut,
+)
 
 router = APIRouter(tags=["payments"])
 
@@ -25,13 +34,28 @@ def _to_out(payment: Payment) -> PaymentOut:
 async def list_payments(
     customer_id: uuid.UUID | None = Query(default=None),
     supplier_id: uuid.UUID | None = Query(default=None),
+    account_id: uuid.UUID | None = Query(default=None),
+    method: PaymentMethod | None = Query(default=None),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    search: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> Page[PaymentOut]:
     items, total = await payments_repo.list_paginated(
-        db, tenant.id, customer_id=customer_id, supplier_id=supplier_id, page=page, page_size=page_size
+        db,
+        tenant.id,
+        customer_id=customer_id,
+        supplier_id=supplier_id,
+        account_id=account_id,
+        method=method,
+        date_from=date_from,
+        date_to=date_to,
+        search=search,
+        page=page,
+        page_size=page_size,
     )
     return Page(items=[_to_out(p) for p in items], total=total, page=page, page_size=page_size)
 
@@ -59,6 +83,40 @@ async def get_payment(
     payment = await payments_repo.get_by_id(db, tenant.id, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    return _to_out(payment)
+
+
+@router.patch("/payments/{payment_id}", response_model=PaymentOut)
+async def update_payment(
+    payment_id: uuid.UUID,
+    payload: PaymentUpdate,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> PaymentOut:
+    payment = await payments_repo.get_by_id(db, tenant.id, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.voided_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Voided payments cannot be edited")
+    payment = await payments_repo.update(db, tenant.id, payment, payload)
+    await db.commit()
+    return _to_out(payment)
+
+
+@router.patch("/payments/{payment_id}/void", response_model=PaymentOut)
+async def void_payment(
+    payment_id: uuid.UUID,
+    payload: PaymentVoidRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> PaymentOut:
+    payment = await payments_repo.get_by_id(db, tenant.id, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.voided_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment is already voided")
+    payment = await payments_repo.void(db, tenant.id, payment, payload.reason)
+    await db.commit()
     return _to_out(payment)
 
 

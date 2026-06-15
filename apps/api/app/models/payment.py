@@ -1,8 +1,8 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, Enum, ForeignKey, Numeric, String
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -27,6 +27,9 @@ class Payment(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     cheque_status: Mapped[ChequeStatus | None] = mapped_column(Enum(ChequeStatus, native_enum=False), nullable=True)
 
     client_uuid: Mapped[uuid.UUID] = mapped_column(unique=True)
+
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
 
 class PaymentAllocation(Base, UUIDPrimaryKeyMixin):

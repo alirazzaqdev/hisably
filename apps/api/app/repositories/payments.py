@@ -1,4 +1,5 @@
 import uuid
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import delete as sa_delete
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.enums import ChequeStatus, InvoiceStatus, PaymentMethod
 from app.models.invoice import Invoice
 from app.models.payment import Payment, PaymentAllocation
-from app.schemas.payment import PaymentCreate
+from app.schemas.payment import PaymentCreate, PaymentUpdate
 
 
 async def get_paid_amount(db: AsyncSession, invoice_id: uuid.UUID) -> Decimal:
@@ -17,6 +18,7 @@ async def get_paid_amount(db: AsyncSession, invoice_id: uuid.UUID) -> Decimal:
         .join(Payment, Payment.id == PaymentAllocation.payment_id)
         .where(
             PaymentAllocation.invoice_id == invoice_id,
+            Payment.voided_at.is_(None),
             or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
         )
     )
@@ -93,6 +95,11 @@ async def list_paginated(
     *,
     customer_id: uuid.UUID | None,
     supplier_id: uuid.UUID | None,
+    account_id: uuid.UUID | None = None,
+    method: PaymentMethod | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: str | None = None,
     page: int,
     page_size: int,
 ) -> tuple[list[Payment], int]:
@@ -105,6 +112,22 @@ async def list_paginated(
     if supplier_id is not None:
         query = query.where(Payment.supplier_id == supplier_id)
         count_query = count_query.where(Payment.supplier_id == supplier_id)
+    if account_id is not None:
+        query = query.where(Payment.account_id == account_id)
+        count_query = count_query.where(Payment.account_id == account_id)
+    if method is not None:
+        query = query.where(Payment.method == method)
+        count_query = count_query.where(Payment.method == method)
+    if date_from is not None:
+        query = query.where(Payment.payment_date >= date_from)
+        count_query = count_query.where(Payment.payment_date >= date_from)
+    if date_to is not None:
+        query = query.where(Payment.payment_date <= date_to)
+        count_query = count_query.where(Payment.payment_date <= date_to)
+    if search:
+        like = f"%{search}%"
+        query = query.where(Payment.reference_no.ilike(like))
+        count_query = count_query.where(Payment.reference_no.ilike(like))
 
     total = (await db.execute(count_query)).scalar_one()
 
@@ -114,6 +137,53 @@ async def list_paginated(
     for payment in payments:
         payment.allocations_loaded = await get_allocations(db, payment.id)
     return payments, total
+
+
+async def update(db: AsyncSession, tenant_id: uuid.UUID, payment: Payment, payload: PaymentUpdate) -> Payment:
+    changes = payload.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(payment, field, value)
+
+    if "method" in changes:
+        if payment.method == PaymentMethod.CHEQUE and payment.cheque_status is None:
+            payment.cheque_status = ChequeStatus.PENDING
+        elif payment.method != PaymentMethod.CHEQUE:
+            payment.cheque_status = None
+            payment.cheque_number = None
+            payment.cheque_date = None
+
+    await db.flush()
+
+    if "method" in changes or "cheque_status" in changes:
+        allocations = await get_allocations(db, payment.id)
+        for alloc in allocations:
+            result = await db.execute(
+                select(Invoice).where(Invoice.id == alloc.invoice_id, Invoice.tenant_id == tenant_id)
+            )
+            invoice = result.scalar_one_or_none()
+            if invoice is not None:
+                await _refresh_invoice_status(db, invoice)
+
+    payment.allocations_loaded = await get_allocations(db, payment.id)
+    return payment
+
+
+async def void(db: AsyncSession, tenant_id: uuid.UUID, payment: Payment, reason: str) -> Payment:
+    payment.voided_at = datetime.now(timezone.utc)
+    payment.void_reason = reason
+    await db.flush()
+
+    allocations = await get_allocations(db, payment.id)
+    for alloc in allocations:
+        result = await db.execute(
+            select(Invoice).where(Invoice.id == alloc.invoice_id, Invoice.tenant_id == tenant_id)
+        )
+        invoice = result.scalar_one_or_none()
+        if invoice is not None:
+            await _refresh_invoice_status(db, invoice)
+
+    payment.allocations_loaded = allocations
+    return payment
 
 
 async def update_cheque_status(db: AsyncSession, tenant_id: uuid.UUID, payment: Payment, status: ChequeStatus) -> Payment:
