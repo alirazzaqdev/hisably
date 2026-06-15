@@ -4,7 +4,8 @@
  * serialize to this shape) and the Next.js frontend (incl. IndexedDB records).
  */
 
-export type Country = "AE" | "SA" | "PK";
+/** ISO 3166-1 alpha-2 country code. See `tax/countries.ts` for the supported list. */
+export type Country = string;
 
 export type VatCategory = "standard" | "zero_rated" | "exempt";
 

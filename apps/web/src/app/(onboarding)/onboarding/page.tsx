@@ -9,18 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CountrySelect } from "@/components/ui/country-select";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 import { onboardingApi } from "@/lib/api/onboarding";
+import { getCountryInfo } from "@hisably/shared";
 import type { Country } from "@hisably/shared";
 
 const STEPS = ["Country", "Business", "Tax details", "Invoicing"] as const;
-
-const COUNTRIES: { code: Country; name: string; comingSoon?: boolean }[] = [
-  { code: "AE", name: "United Arab Emirates" },
-  { code: "SA", name: "Saudi Arabia", comingSoon: true },
-  { code: "PK", name: "Pakistan", comingSoon: true },
-];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -120,29 +116,17 @@ export default function OnboardingPage() {
       <CardContent className="flex flex-col gap-4">
         {step === 0 && (
           <div className="flex flex-col gap-2">
-            {COUNTRIES.map((option) => (
-              <button
-                key={option.code}
-                type="button"
-                disabled={option.comingSoon}
-                onClick={() => setCountry(option.code)}
-                className={cn(
-                  "flex items-center justify-between rounded-md border px-4 py-3 text-start transition-colors",
-                  country === option.code
-                    ? "border-accent-600 bg-accent-50"
-                    : "border-border hover:bg-muted",
-                  option.comingSoon && "cursor-not-allowed opacity-50 hover:bg-transparent"
-                )}
-              >
-                <div className="flex flex-col">
-                  <span className="text-body-lg font-medium text-foreground">{option.name}</span>
-                  {option.comingSoon && (
-                    <span className="text-body-sm text-muted-foreground">Coming soon</span>
-                  )}
-                </div>
-                {country === option.code && <Check className="h-5 w-5 text-accent-600" />}
-              </button>
-            ))}
+            <Label htmlFor="onboarding-country">Country</Label>
+            <CountrySelect id="onboarding-country" value={country} onChange={(code) => setCountry(code)} />
+            {(() => {
+              const info = getCountryInfo(country);
+              return info ? (
+                <p className="text-body-sm text-muted-foreground">
+                  Currency: {info.currency} · Default {info.vatName}: {info.vatRate}% — both editable later in
+                  Settings.
+                </p>
+              ) : null;
+            })()}
           </div>
         )}
 

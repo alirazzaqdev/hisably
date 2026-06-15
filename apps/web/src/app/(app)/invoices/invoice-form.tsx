@@ -8,7 +8,6 @@ import {
   computeLineItem,
   toMajorUnits,
   toMinorUnits,
-  vatRateForCategory,
   type Country,
   type InvoiceLineItemInput as SharedLineItemInput,
 } from "@hisably/shared";
@@ -66,7 +65,11 @@ const INVOICE_LANGUAGES: { value: InvoiceLanguage; label: string }[] = [
   { value: "bilingual", label: "Bilingual (EN/AR)" },
 ];
 
-const CURRENCIES = ["AED", "SAR", "PKR", "USD", "EUR", "GBP"];
+const CURRENCIES = [
+  "AED", "AUD", "BDT", "BHD", "CAD", "CHF", "CNY", "DKK", "EGP", "EUR", "GBP", "IDR", "ILS", "INR",
+  "JOD", "JPY", "KES", "KRW", "KWD", "LBP", "MAD", "MXN", "MYR", "NGN", "NOK", "NZD", "OMR", "PHP",
+  "PKR", "PLN", "QAR", "SAR", "SEK", "SGD", "THB", "TND", "TRY", "USD", "VND", "ZAR",
+];
 
 function emptyLine(): InvoiceLineItemInput {
   return { description: "", quantity: "1", unit_price: "0", vat_category: "standard" };
@@ -153,6 +156,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   });
   const priceByItemId = new Map(priceListItems?.map((p) => [p.item_id, p.price]));
   const country = resolveCountry(tenant?.country);
+  const vatRateOverride = tenant?.vat_rate !== undefined ? Number(tenant.vat_rate) : undefined;
 
   useEffect(() => {
     if (invoice || !tenant?.currency) return;
@@ -180,7 +184,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     setLines(
       sourceInvoice.line_items.map((li) => {
         if (isQuotationToProforma) {
-          const computed = computeLine(li, country);
+          const computed = computeLine(li, country, vatRateOverride);
           return {
             item_id: li.item_id,
             description: li.description,
@@ -339,7 +343,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     setLines((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
   }
 
-  const totals = computeTotals(lines, discountAmount, country);
+  const totals = computeTotals(lines, discountAmount, country, vatRateOverride);
 
   return (
     <Card className="max-w-3xl">
@@ -527,7 +531,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                 </thead>
                 <tbody>
                   {lines.map((line, index) => {
-                    const computed = computeLine(line, country);
+                    const computed = computeLine(line, country, vatRateOverride);
                     const lineUnit = items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
                     const isSqm = lineUnit === "sqm";
                     const isLm = lineUnit === "lm";
@@ -896,14 +900,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   );
 }
 
-/** Falls back to AE rates if the tenant's country has no tax regime implemented yet. */
 function resolveCountry(country: string | undefined): Country {
-  try {
-    vatRateForCategory((country ?? "AE") as Country, "standard");
-    return (country ?? "AE") as Country;
-  } catch {
-    return "AE";
-  }
+  return (country ?? "AE") as Country;
 }
 
 function toSharedLine(line: InvoiceLineItemInput): SharedLineItemInput {
@@ -923,8 +921,8 @@ function toSharedLine(line: InvoiceLineItemInput): SharedLineItemInput {
   };
 }
 
-function computeLine(line: InvoiceLineItemInput, country: Country) {
-  const computed = computeLineItem(toSharedLine(line), country);
+function computeLine(line: InvoiceLineItemInput, country: Country, vatRateOverride?: number) {
+  const computed = computeLineItem(toSharedLine(line), country, vatRateOverride);
   return {
     quantity: computed.quantity,
     computedGross: toMajorUnits(computed.computedGross),
@@ -935,11 +933,17 @@ function computeLine(line: InvoiceLineItemInput, country: Country) {
   };
 }
 
-function computeTotals(lines: InvoiceLineItemInput[], discountAmount: string | undefined, country: Country) {
+function computeTotals(
+  lines: InvoiceLineItemInput[],
+  discountAmount: string | undefined,
+  country: Country,
+  vatRateOverride?: number
+) {
   const totals = computeInvoiceTotals(
     lines.map(toSharedLine),
     country,
-    toMinorUnits(Number(discountAmount ?? "0") || 0)
+    toMinorUnits(Number(discountAmount ?? "0") || 0),
+    vatRateOverride
   );
   return {
     subtotal: toMajorUnits(totals.subtotal),

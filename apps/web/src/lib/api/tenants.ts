@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api-client";
+import type { Country } from "@hisably/shared";
 import type { TenantOut, VatCategory } from "@/lib/api/onboarding";
 
 export interface TenantUpdateInput {
@@ -6,6 +7,9 @@ export interface TenantUpdateInput {
   trn?: string | null;
   vat_registered?: boolean;
   address?: string | null;
+  country?: Country;
+  currency?: string;
+  vat_rate?: string;
   logo_url?: string | null;
   invoice_prefix?: string;
   quotation_prefix?: string;

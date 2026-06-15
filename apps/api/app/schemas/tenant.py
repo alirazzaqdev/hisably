@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -24,6 +25,9 @@ class TenantUpdate(BaseModel):
     logo_url: str | None = None
     invoice_prefix: str | None = Field(default=None, max_length=16)
     quotation_prefix: str | None = Field(default=None, max_length=16)
+    country: Country | None = None
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    vat_rate: Decimal | None = Field(default=None, ge=0, le=100)
     default_vat_category: VatCategory | None = None
     industry_profile: str | None = Field(default=None, max_length=32)
     enabled_fields: dict[str, bool] | None = None
@@ -46,6 +50,7 @@ class TenantOut(BaseModel):
     business_name: str
     country: Country
     currency: str
+    vat_rate: Decimal
     vat_registered: bool
     trn: str | None
     address: str | None

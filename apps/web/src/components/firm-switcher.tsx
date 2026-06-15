@@ -8,13 +8,8 @@ import { firmsApi } from "@/lib/api/firms";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CountrySelect } from "@/components/ui/country-select";
 import { useAuthStore } from "@/stores/auth-store";
-
-const COUNTRIES: { value: Country; label: string }[] = [
-  { value: "AE", label: "UAE" },
-  { value: "SA", label: "Saudi Arabia" },
-  { value: "PK", label: "Pakistan" },
-];
 
 export function FirmSwitcher() {
   const queryClient = useQueryClient();
@@ -81,13 +76,7 @@ export function FirmSwitcher() {
             className="text-body-sm"
             autoFocus
           />
-          <Select value={newCountry} onChange={(e) => setNewCountry(e.target.value as Country)} className="text-body-sm">
-            {COUNTRIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </Select>
+          <CountrySelect value={newCountry} onChange={(code) => setNewCountry(code as Country)} className="text-body-sm" />
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={submitting} className="flex-1">
               Create

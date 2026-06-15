@@ -17,6 +17,7 @@ export interface TenantOut {
   business_name: string;
   country: Country;
   currency: string;
+  vat_rate: string;
   vat_registered: boolean;
   trn: string | null;
   address: string | null;

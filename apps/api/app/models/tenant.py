@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, Enum, JSON, String
+from decimal import Decimal
+
+from sqlalchemy import Boolean, Enum, JSON, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -13,6 +15,9 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     vat_registered: Mapped[bool] = mapped_column(Boolean, default=False)
     country: Mapped[Country] = mapped_column(Enum(Country, native_enum=False), default=Country.AE)
     currency: Mapped[str] = mapped_column(String(3), default="AED")
+    # Standard VAT/GST/Sales-tax rate (%) applied to "standard" category lines.
+    # Seeded from the country's default at onboarding; editable in Settings.
+    vat_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=Decimal("5"))
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     invoice_prefix: Mapped[str] = mapped_column(String(16), default="INV-")

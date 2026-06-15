@@ -65,7 +65,9 @@ def resolve_line_quantity(line: InvoiceLineItemInput) -> float:
     return quantity
 
 
-def compute_line_item(line: InvoiceLineItemInput, country: Country) -> InvoiceLineItemComputed:
+def compute_line_item(
+    line: InvoiceLineItemInput, country: Country, standard_rate_override: float | None = None
+) -> InvoiceLineItemComputed:
     quantity = resolve_line_quantity(line)
     final_payment_factor = line.final_payment_factor if line.final_payment_factor is not None else 1
     computed_gross = round_half_away_from_zero(line.unit_price * quantity * final_payment_factor)
@@ -79,7 +81,7 @@ def compute_line_item(line: InvoiceLineItemInput, country: Country) -> InvoiceLi
         discount_applied = 0
 
     taxable_amount = gross_amount - discount_applied
-    vat_rate = vat_rate_for_category(country, line.vat_category)
+    vat_rate = vat_rate_for_category(country, line.vat_category, standard_rate_override)
     vat_amount = round_half_away_from_zero(taxable_amount * vat_rate / 100)
     line_total = taxable_amount + vat_amount
 
@@ -99,8 +101,9 @@ def compute_invoice_totals(
     line_inputs: list[InvoiceLineItemInput],
     country: Country,
     invoice_level_discount: int = 0,
+    standard_rate_override: float | None = None,
 ) -> InvoiceTotals:
-    computed_lines = [compute_line_item(line, country) for line in line_inputs]
+    computed_lines = [compute_line_item(line, country, standard_rate_override) for line in line_inputs]
 
     gross_subtotal = sum(l.taxable_amount + l.discount_applied for l in computed_lines)
     line_discount_total = sum(l.discount_applied for l in computed_lines)

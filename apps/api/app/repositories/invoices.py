@@ -45,10 +45,11 @@ def _to_math_line(line: InvoiceLineItemInput) -> MathLineItem:
 
 
 def _build_line_items(
-    payload_lines: list[InvoiceLineItemInput], country, invoice_discount: Decimal
+    payload_lines: list[InvoiceLineItemInput], country, invoice_discount: Decimal, vat_rate: Decimal | None = None
 ) -> tuple[list[InvoiceLineItem], dict]:
     math_lines = [_to_math_line(line) for line in payload_lines]
-    totals = compute_invoice_totals(math_lines, country, _to_minor(invoice_discount) or 0)
+    standard_rate_override = float(vat_rate) if vat_rate is not None else None
+    totals = compute_invoice_totals(math_lines, country, _to_minor(invoice_discount) or 0, standard_rate_override)
 
     line_items: list[InvoiceLineItem] = []
     for sort_order, (input_line, computed) in enumerate(zip(payload_lines, totals.lines)):
@@ -117,7 +118,7 @@ async def get_line_items(db: AsyncSession, invoice_id: uuid.UUID) -> list[Invoic
 
 
 async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> Invoice:
-    line_items, summary = _build_line_items(payload.line_items, tenant.country, payload.discount_amount)
+    line_items, summary = _build_line_items(payload.line_items, tenant.country, payload.discount_amount, tenant.vat_rate)
     number = await _next_invoice_number(db, tenant, payload.type)
 
     invoice = Invoice(
@@ -227,7 +228,7 @@ async def update(db: AsyncSession, tenant: Tenant, invoice: Invoice, payload: In
 
     if payload.line_items is not None:
         discount_amount = payload.discount_amount if payload.discount_amount is not None else invoice.discount_amount
-        line_items, summary = _build_line_items(payload.line_items, tenant.country, discount_amount)
+        line_items, summary = _build_line_items(payload.line_items, tenant.country, discount_amount, tenant.vat_rate)
 
         await db.execute(sa_delete(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id))
         await db.flush()

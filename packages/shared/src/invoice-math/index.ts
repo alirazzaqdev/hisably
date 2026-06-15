@@ -48,7 +48,8 @@ export function resolveLineQuantity(
  */
 export function computeLineItem(
   input: InvoiceLineItemInput,
-  country: Country
+  country: Country,
+  standardRateOverride?: number
 ): InvoiceLineItemComputed {
   const quantity = resolveLineQuantity(input);
   const computedGross = roundHalfAwayFromZero(
@@ -66,7 +67,7 @@ export function computeLineItem(
   }
 
   const taxableAmount = grossAmount - discountApplied;
-  const vatRate = vatRateForCategory(country, input.vatCategory);
+  const vatRate = vatRateForCategory(country, input.vatCategory, standardRateOverride);
   const vatAmount = roundHalfAwayFromZero((taxableAmount * vatRate) / 100);
   const lineTotal = taxableAmount + vatAmount;
 
@@ -91,9 +92,10 @@ export function computeLineItem(
 export function computeInvoiceTotals(
   lineInputs: InvoiceLineItemInput[],
   country: Country,
-  invoiceLevelDiscount: MinorUnits = 0
+  invoiceLevelDiscount: MinorUnits = 0,
+  standardRateOverride?: number
 ): InvoiceTotals {
-  const computedLines = lineInputs.map((line) => computeLineItem(line, country));
+  const computedLines = lineInputs.map((line) => computeLineItem(line, country, standardRateOverride));
 
   const grossSubtotal = sum(computedLines.map((l) => l.taxableAmount + l.discountApplied));
   const lineDiscountTotal = sum(computedLines.map((l) => l.discountApplied));

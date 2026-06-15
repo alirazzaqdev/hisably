@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,20 +8,16 @@ from app.models.enums import AccountType
 from app.models.tenant import Tenant
 from app.repositories import invoice_sequences as invoice_sequences_repo
 from app.schemas.tenant import OnboardingBusinessRequest
-
-# UAE is the only launch country, so it's the only one with a non-zero
-# default VAT rate; SA/PK tenants start unregistered until those regimes ship.
-COUNTRY_CURRENCY = {
-    "AE": "AED",
-    "SA": "SAR",
-    "PK": "PKR",
-}
+from app.tax.countries import get_country_info
 
 
 async def update_business(db: AsyncSession, tenant: Tenant, payload: OnboardingBusinessRequest) -> Tenant:
     tenant.business_name = payload.business_name
     tenant.country = payload.country
-    tenant.currency = COUNTRY_CURRENCY[payload.country.value]
+    country_info = get_country_info(payload.country.value)
+    if country_info is not None:
+        tenant.currency = country_info.currency
+        tenant.vat_rate = Decimal(str(country_info.vat_rate))
     tenant.trn = payload.trn
     tenant.vat_registered = payload.vat_registered
     tenant.logo_url = payload.logo_url

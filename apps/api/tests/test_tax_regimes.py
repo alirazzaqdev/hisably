@@ -3,28 +3,21 @@ import base64
 import pytest
 
 from app.models.enums import Country, VatCategory
-from app.tax.regimes import UAE_REGIME, get_tax_regime, vat_rate_for_category
+from app.tax.regimes import invoice_label, vat_rate_for_category
 from app.tax.zatca_qr import ZatcaQrFields, build_zatca_tlv, generate_zatca_qr_base64
 
 
-def test_uae_regime_rates():
-    assert UAE_REGIME.vat_rates[VatCategory.STANDARD] == 5
-    assert UAE_REGIME.vat_rates[VatCategory.ZERO_RATED] == 0
-    assert UAE_REGIME.vat_rates[VatCategory.EXEMPT] == 0
-
-
 def test_uae_invoice_label_depends_on_registration():
-    assert get_tax_regime(Country.AE).invoice_label(vat_registered=True).en == "Tax Invoice"
-    assert get_tax_regime(Country.AE).invoice_label(vat_registered=False).en == "Invoice"
+    assert invoice_label(vat_registered=True).en == "Tax Invoice"
+    assert invoice_label(vat_registered=False).en == "Invoice"
 
 
 def test_vat_rate_for_category():
     assert vat_rate_for_category(Country.AE, VatCategory.STANDARD) == 5
 
 
-def test_unimplemented_regime_raises():
-    with pytest.raises(NotImplementedError):
-        get_tax_regime(Country.SA)
+def test_other_country_default_rate():
+    assert vat_rate_for_category(Country.SA, VatCategory.STANDARD) == 15
 
 
 ZATCA_FIELDS = ZatcaQrFields(

@@ -9,6 +9,8 @@ import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { CountrySelect } from "@/components/ui/country-select";
+import { getCountryInfo } from "@hisably/shared";
 import { ApiError } from "@/lib/api-client";
 import type { VatCategory } from "@/lib/api/onboarding";
 import { tenantsApi, type TenantUpdateInput } from "@/lib/api/tenants";
@@ -49,6 +51,9 @@ export default function SettingsPage() {
         bank_iban: tenant.bank_iban ?? "",
         contact_person: tenant.contact_person ?? "",
         contact_phone: tenant.contact_phone ?? "",
+        country: tenant.country,
+        currency: tenant.currency,
+        vat_rate: tenant.vat_rate,
       });
     }
   }, [tenant]);
@@ -157,14 +162,35 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 text-body-sm text-muted-foreground">
-              <div>
-                <p className="font-medium text-foreground">Country</p>
-                <p>{tenant?.country ?? "—"}</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="country">Country</Label>
+                <CountrySelect
+                  id="country"
+                  value={form.country ?? "AE"}
+                  onChange={(code) => update("country", code as TenantUpdateInput["country"])}
+                />
               </div>
-              <div>
-                <p className="font-medium text-foreground">Currency</p>
-                <p>{tenant?.currency ?? "—"}</p>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="currency">Currency</Label>
+                <Input
+                  id="currency"
+                  maxLength={3}
+                  value={form.currency ?? ""}
+                  onChange={(e) => update("currency", e.target.value.toUpperCase())}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="vat_rate">{(getCountryInfo(form.country ?? "AE")?.vatName ?? "VAT") + " rate (%)"}</Label>
+                <Input
+                  id="vat_rate"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={form.vat_rate ?? ""}
+                  onChange={(e) => update("vat_rate", e.target.value)}
+                />
               </div>
             </div>
 

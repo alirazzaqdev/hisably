@@ -87,10 +87,18 @@ def test_empty_invoice_returns_zeroed_totals():
     assert totals.lines == []
 
 
-def test_unimplemented_country_raises():
+def test_other_country_uses_default_rate():
     lines = [InvoiceLineItemInput(description="Item A", quantity=1, unit_price=1000, vat_category=VatCategory.STANDARD)]
-    with pytest.raises(NotImplementedError):
-        compute_invoice_totals(lines, Country.SA)
+    totals = compute_invoice_totals(lines, Country.SA)
+    assert totals.lines[0].vat_rate == 15
+    assert totals.vat_total == 150
+
+
+def test_standard_rate_override():
+    lines = [InvoiceLineItemInput(description="Item A", quantity=1, unit_price=1000, vat_category=VatCategory.STANDARD)]
+    totals = compute_invoice_totals(lines, Country.AE, standard_rate_override=8)
+    assert totals.lines[0].vat_rate == 8
+    assert totals.vat_total == 80
 
 
 @pytest.mark.parametrize(
