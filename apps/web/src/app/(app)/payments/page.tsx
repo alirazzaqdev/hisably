@@ -3,13 +3,26 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageCircle, Plus, Receipt, Trash2 } from "lucide-react";
+import { ChevronRight, MessageCircle, Plus, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { accountsApi } from "@/lib/api/accounts";
 import { customersApi } from "@/lib/api/customers";
+import { invoicesApi } from "@/lib/api/invoices";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
-import { paymentsApi, type ChequeStatus, type Receivable } from "@/lib/api/payments";
+import { paymentsApi, type ChequeStatus, type PaymentMethod, type Receivable } from "@/lib/api/payments";
 import { InvoiceStatusBadge } from "../invoices/status-badge";
+
+const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "cheque", label: "Cheque" },
+  { value: "card", label: "Card" },
+  { value: "other", label: "Other" },
+];
 
 const TABS = [
   { value: "history", label: "Payment history" },
@@ -39,9 +52,25 @@ export default function PaymentsPage() {
   const [tab, setTab] = useState<Tab>("history");
   const queryClient = useQueryClient();
 
+  const [customerFilter, setCustomerFilter] = useState("");
+  const [accountFilter, setAccountFilter] = useState("");
+  const [methodFilter, setMethodFilter] = useState<PaymentMethod | "">("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
+
+  const filters = {
+    customerId: customerFilter || undefined,
+    accountId: accountFilter || undefined,
+    method: methodFilter || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    search: search || undefined,
+  };
+
   const { data: payments, isLoading: paymentsLoading, isError: paymentsError } = useQuery({
-    queryKey: ["payments"],
-    queryFn: () => paymentsApi.list({ pageSize: 50 }),
+    queryKey: ["payments", filters],
+    queryFn: () => paymentsApi.list({ ...filters, pageSize: 50 }),
   });
   const { data: receivables, isLoading: receivablesLoading, isError: receivablesError } = useQuery({
     queryKey: ["receivables"],
@@ -52,6 +81,14 @@ export default function PaymentsPage() {
     queryKey: ["customers", "all"],
     queryFn: () => customersApi.list({ pageSize: 100 }),
   });
+  const { data: accounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => accountsApi.list(),
+  });
+  const { data: invoices } = useQuery({
+    queryKey: ["invoices", "all"],
+    queryFn: () => invoicesApi.list({ pageSize: 100 }),
+  });
 
   const customerById = useMemo(
     () => new Map(customers?.items.map((c) => [c.id, c]) ?? []),
@@ -59,21 +96,29 @@ export default function PaymentsPage() {
   );
   const customerName = (id: string | null) => customerById.get(id ?? "")?.name ?? "—";
 
+  const accountById = useMemo(() => new Map(accounts?.map((a) => [a.id, a]) ?? []), [accounts]);
+  const accountName = (id: string | null) => accountById.get(id ?? "")?.name ?? "—";
+
+  const invoiceById = useMemo(
+    () => new Map(invoices?.items.map((inv) => [inv.id, inv]) ?? []),
+    [invoices]
+  );
+  const documentLabel = (allocations: { invoice_id: string }[]) => {
+    if (allocations.length === 0) return "—";
+    return allocations
+      .map((a) => {
+        const inv = invoiceById.get(a.invoice_id);
+        return inv ? inv.invoice_number ?? inv.draft_number : a.invoice_id.slice(0, 8);
+      })
+      .join(", ");
+  };
+
   const sortedReceivables = useMemo(() => (receivables ? sortReceivables(receivables) : []), [receivables]);
   const totalOutstanding = useMemo(
     () => sortedReceivables.reduce((sum, r) => sum + Number(r.balance_due), 0),
     [sortedReceivables]
   );
   const overdueCount = sortedReceivables.filter((r) => r.status === "overdue").length;
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => paymentsApi.remove(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["receivables"] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    },
-  });
 
   const chequeStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ChequeStatus }) => paymentsApi.setChequeStatus(id, status),
@@ -117,6 +162,63 @@ export default function PaymentsPage() {
 
       {tab === "history" && (
         <>
+          <div className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="filter-customer">Customer</Label>
+              <Select id="filter-customer" value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}>
+                <option value="">All customers</option>
+                {customers?.items.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="filter-account">Account</Label>
+              <Select id="filter-account" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
+                <option value="">All accounts</option>
+                {accounts?.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="filter-method">Method</Label>
+              <Select
+                id="filter-method"
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value as PaymentMethod | "")}
+              >
+                <option value="">All methods</option>
+                {PAYMENT_METHOD_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="filter-date-from">From</Label>
+              <Input id="filter-date-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="filter-date-to">To</Label>
+              <Input id="filter-date-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="filter-search">Reference search</Label>
+              <Input
+                id="filter-search"
+                placeholder="Search reference…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
           {paymentsLoading && <div className="py-12 text-center text-body text-muted-foreground">Loading…</div>}
           {paymentsError && (
             <div className="py-12 text-center text-body text-danger-500">Something went wrong. Please try again.</div>
@@ -125,8 +227,10 @@ export default function PaymentsPage() {
             <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
               <Receipt className="h-8 w-8 text-muted-foreground" />
               <div>
-                <p className="text-body font-medium text-foreground">No payments recorded yet</p>
-                <p className="text-body-sm text-muted-foreground">Record a payment to see it here.</p>
+                <p className="text-body font-medium text-foreground">No payments found</p>
+                <p className="text-body-sm text-muted-foreground">
+                  Record a payment or adjust your filters to see results here.
+                </p>
               </div>
               <Button asChild>
                 <Link href="/payments/new">
@@ -146,8 +250,10 @@ export default function PaymentsPage() {
                     <tr>
                       <th className="px-4 py-3 font-medium">Date</th>
                       <th className="px-4 py-3 font-medium">Customer</th>
+                      <th className="px-4 py-3 font-medium">Document</th>
                       <th className="px-4 py-3 font-medium">Method</th>
                       <th className="px-4 py-3 font-medium">Reference</th>
+                      <th className="px-4 py-3 font-medium">Account</th>
                       <th className="px-4 py-3 font-medium">Cheque</th>
                       <th className="px-4 py-3 text-right font-medium">Amount</th>
                       <th className="w-10 px-2 py-3" />
@@ -155,11 +261,23 @@ export default function PaymentsPage() {
                   </thead>
                   <tbody>
                     {payments.items.map((payment) => (
-                      <tr key={payment.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                      <tr
+                        key={payment.id}
+                        className={`border-b border-border last:border-0 hover:bg-muted/50 ${payment.voided_at ? "opacity-60" : ""}`}
+                      >
                         <td className="px-4 py-3 text-muted-foreground">{payment.payment_date}</td>
-                        <td className="px-4 py-3">{customerName(payment.customer_id)}</td>
+                        <td className="px-4 py-3">
+                          {customerName(payment.customer_id)}
+                          {payment.voided_at && (
+                            <Badge variant="danger" className="ml-2">
+                              Voided
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{documentLabel(payment.allocations)}</td>
                         <td className="px-4 py-3 text-muted-foreground capitalize">{payment.method.replace("_", " ")}</td>
                         <td className="px-4 py-3 text-muted-foreground">{payment.reference_no ?? "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{accountName(payment.account_id)}</td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {payment.method === "cheque" ? (
                             <div className="flex flex-col gap-1">
@@ -207,14 +325,13 @@ export default function PaymentsPage() {
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">{payment.amount}</td>
                         <td className="px-2 py-3 text-center">
-                          <button
-                            onClick={() => deleteMutation.mutate(payment.id)}
-                            disabled={deleteMutation.isPending}
-                            className="text-muted-foreground hover:text-danger-500"
-                            aria-label="Delete payment"
+                          <Link
+                            href={`/payments/${payment.id}`}
+                            className="text-muted-foreground hover:text-accent-700"
+                            aria-label="View payment"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
                         </td>
                       </tr>
                     ))}
@@ -225,26 +342,38 @@ export default function PaymentsPage() {
               {/* Mobile cards */}
               <div className="flex flex-col gap-3 md:hidden">
                 {payments.items.map((payment) => (
-                  <div key={payment.id} className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+                  <div
+                    key={payment.id}
+                    className={`flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 ${payment.voided_at ? "opacity-60" : ""}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-medium text-foreground">{customerName(payment.customer_id)}</p>
+                        <p className="font-medium text-foreground">
+                          {customerName(payment.customer_id)}
+                          {payment.voided_at && (
+                            <Badge variant="danger" className="ml-2">
+                              Voided
+                            </Badge>
+                          )}
+                        </p>
                         <p className="text-body-sm text-muted-foreground">
                           {payment.payment_date} · <span className="capitalize">{payment.method.replace("_", " ")}</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-body font-medium tabular-nums text-foreground">{payment.amount}</p>
-                        <button
-                          onClick={() => deleteMutation.mutate(payment.id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-muted-foreground hover:text-danger-500"
-                          aria-label="Delete payment"
+                        <Link
+                          href={`/payments/${payment.id}`}
+                          className="text-muted-foreground hover:text-accent-700"
+                          aria-label="View payment"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
                       </div>
                     </div>
+                    <p className="text-body-sm text-muted-foreground">
+                      {documentLabel(payment.allocations)} · {accountName(payment.account_id)}
+                    </p>
                     {payment.reference_no && (
                       <p className="text-body-sm text-muted-foreground">Ref: {payment.reference_no}</p>
                     )}
