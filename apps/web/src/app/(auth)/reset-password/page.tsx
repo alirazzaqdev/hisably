@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AuthCard } from "@/components/ui/auth-card";
+import { AuthShell } from "@/components/ui/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-message";
@@ -63,7 +63,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <AuthCard>
+    <AuthShell>
       <Card>
         <CardHeader>
           <CardTitle>Set a new password</CardTitle>
@@ -133,6 +133,6 @@ function ResetPasswordForm() {
           </Link>
         </p>
       </Card>
-    </AuthCard>
+    </AuthShell>
   );
 }

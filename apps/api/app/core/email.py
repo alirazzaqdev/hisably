@@ -13,6 +13,53 @@ from app.core.config import get_settings
 
 logger = logging.getLogger("hisably.email")
 
+ACCENT_COLOR = "#0F766E"
+
+
+def _otp_email_html(otp_code: str, purpose: str) -> str:
+    return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#F4F4F5;font-family:Segoe UI,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" style="max-width:480px;background:#FFFFFF;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="background:{ACCENT_COLOR};padding:24px 32px;">
+                <span style="color:#FFFFFF;font-size:20px;font-weight:700;letter-spacing:0.02em;">Hisably</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <p style="margin:0 0 16px;color:#18181B;font-size:16px;line-height:24px;">
+                  Use the code below to {purpose}:
+                </p>
+                <div style="margin:0 0 16px;text-align:center;">
+                  <span style="display:inline-block;padding:12px 24px;border-radius:8px;background:#F0FDFA;color:{ACCENT_COLOR};font-size:28px;font-weight:700;letter-spacing:0.3em;font-family:'Courier New',monospace;">
+                    {otp_code}
+                  </span>
+                </div>
+                <p style="margin:0;color:#71717A;font-size:14px;line-height:20px;">
+                  This code expires shortly. If you didn't request this, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px;border-top:1px solid #E4E4E7;">
+                <p style="margin:0;color:#A1A1AA;font-size:12px;">
+                  &copy; {{year}} Hisably. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+
 
 def send_otp_email(to_email: str, otp_code: str, purpose: str = "verify your account") -> None:
     settings = get_settings()
@@ -20,6 +67,8 @@ def send_otp_email(to_email: str, otp_code: str, purpose: str = "verify your acc
     if not (settings.smtp_host and settings.smtp_user and settings.smtp_password):
         logger.info("OTP email to %s (%s): code=%s", to_email, purpose, otp_code)
         return
+
+    from datetime import date
 
     message = EmailMessage()
     message["Subject"] = f"Hisably code: {otp_code}"
@@ -29,6 +78,10 @@ def send_otp_email(to_email: str, otp_code: str, purpose: str = "verify your acc
         f"Your Hisably verification code is {otp_code}.\n\n"
         f"Use this code to {purpose}. This code expires shortly.\n\n"
         "If you didn't request this, you can ignore this email."
+    )
+    message.add_alternative(
+        _otp_email_html(otp_code, purpose).replace("{year}", str(date.today().year)),
+        subtype="html",
     )
 
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:

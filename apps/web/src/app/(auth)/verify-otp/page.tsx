@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AuthCard } from "@/components/ui/auth-card";
+import { AuthShell } from "@/components/ui/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError, FormSuccess } from "@/components/ui/form-message";
@@ -82,7 +82,7 @@ function VerifyOtpForm() {
   }
 
   return (
-    <AuthCard>
+    <AuthShell>
       <Card>
         <CardHeader>
           <CardTitle>Verify your email</CardTitle>
@@ -118,6 +118,6 @@ function VerifyOtpForm() {
           </button>
         </CardContent>
       </Card>
-    </AuthCard>
+    </AuthShell>
   );
 }

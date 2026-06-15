@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AuthCard } from "@/components/ui/auth-card";
+import { AuthShell } from "@/components/ui/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-message";
@@ -54,7 +54,7 @@ export default function SignupPage() {
   const strength = passwordStrength(password);
 
   return (
-    <AuthCard>
+    <AuthShell>
       <Card>
         <CardHeader>
           <CardTitle>Create your account</CardTitle>
@@ -130,7 +130,7 @@ export default function SignupPage() {
           </Link>
         </p>
       </Card>
-    </AuthCard>
+    </AuthShell>
   );
 }
 
