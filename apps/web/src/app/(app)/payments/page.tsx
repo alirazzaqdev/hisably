@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, MessageCircle, Plus, Receipt } from "lucide-react";
+import { ChevronRight, Mail, MessageCircle, Plus, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,63 @@ type Tab = (typeof TABS)[number]["value"];
 function whatsappLink(phone: string, message: string): string {
   const digits = phone.replace(/[^0-9+]/g, "").replace(/^00/, "+");
   return `https://wa.me/${digits.replace("+", "")}?text=${encodeURIComponent(message)}`;
+}
+
+function mailtoLink(email: string, subject: string, body: string): string {
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+interface AgingBuckets {
+  current: number;
+  d1_30: number;
+  d31_60: number;
+  d60_plus: number;
+}
+
+interface CustomerAging {
+  customerId: string;
+  buckets: AgingBuckets;
+  total: number;
+  currency: string;
+  invoiceCount: number;
+}
+
+function agingByCustomer(receivables: Receivable[]): CustomerAging[] {
+  const today = new Date();
+  const byCustomer = new Map<string, CustomerAging>();
+
+  for (const r of receivables) {
+    if (!r.customer_id) continue;
+    const balance = Number(r.balance_due);
+    if (balance <= 0) continue;
+
+    let entry = byCustomer.get(r.customer_id);
+    if (!entry) {
+      entry = {
+        customerId: r.customer_id,
+        buckets: { current: 0, d1_30: 0, d31_60: 0, d60_plus: 0 },
+        total: 0,
+        currency: r.currency,
+        invoiceCount: 0,
+      };
+      byCustomer.set(r.customer_id, entry);
+    }
+
+    let bucket: keyof AgingBuckets = "current";
+    if (r.due_date) {
+      const dueDate = new Date(r.due_date);
+      const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysOverdue > 60) bucket = "d60_plus";
+      else if (daysOverdue > 30) bucket = "d31_60";
+      else if (daysOverdue > 0) bucket = "d1_30";
+    }
+
+    entry.buckets[bucket] += balance;
+    entry.total += balance;
+    entry.invoiceCount += 1;
+  }
+
+  return Array.from(byCustomer.values()).sort((a, b) => b.total - a.total);
 }
 
 function sortReceivables(receivables: Receivable[]): Receivable[] {
@@ -119,6 +176,7 @@ export default function PaymentsPage() {
     [sortedReceivables]
   );
   const overdueCount = sortedReceivables.filter((r) => r.status === "overdue").length;
+  const customerAgings = useMemo(() => agingByCustomer(sortedReceivables), [sortedReceivables]);
 
   const chequeStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ChequeStatus }) => paymentsApi.setChequeStatus(id, status),
@@ -437,6 +495,141 @@ export default function PaymentsPage() {
                 <p className={`text-h3 tabular-nums ${overdueCount > 0 ? "text-danger-500" : "text-foreground"}`}>
                   {overdueCount}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {!receivablesLoading && !receivablesError && customerAgings.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-border bg-surface">
+              <div className="border-b border-border px-4 py-3">
+                <p className="font-medium text-foreground">Receivables by customer (aging)</p>
+                <p className="text-body-sm text-muted-foreground">
+                  Outstanding balances grouped by how overdue they are, with quick reminders.
+                </p>
+              </div>
+              {/* Desktop / tablet table */}
+              <div className="hidden md:block">
+                <table className="w-full text-left text-body">
+                  <thead className="border-b border-border bg-muted text-body-sm text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Customer</th>
+                      <th className="px-4 py-3 text-right font-medium">Current</th>
+                      <th className="px-4 py-3 text-right font-medium">1-30 days</th>
+                      <th className="px-4 py-3 text-right font-medium">31-60 days</th>
+                      <th className="px-4 py-3 text-right font-medium">60+ days</th>
+                      <th className="px-4 py-3 text-right font-medium">Total</th>
+                      <th className="w-20 px-2 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerAgings.map((a) => {
+                      const customer = customerById.get(a.customerId);
+                      const reminderMessage = `Hi ${customer?.name ?? "there"}, this is a reminder that you have an outstanding balance of ${a.currency} ${a.total.toFixed(2)} across ${a.invoiceCount} invoice(s). Please let us know if you have any questions.`;
+                      return (
+                        <tr key={a.customerId} className="border-b border-border last:border-0 hover:bg-muted/50">
+                          <td className="px-4 py-3 font-medium text-foreground">{customer?.name ?? "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{a.buckets.current.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{a.buckets.d1_30.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{a.buckets.d31_60.toFixed(2)}</td>
+                          <td
+                            className={`px-4 py-3 text-right tabular-nums ${a.buckets.d60_plus > 0 ? "text-danger-500" : ""}`}
+                          >
+                            {a.buckets.d60_plus.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium">
+                            {a.currency} {a.total.toFixed(2)}
+                          </td>
+                          <td className="px-2 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {customer?.phone && (
+                                <a
+                                  href={whatsappLink(customer.phone, reminderMessage)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-muted-foreground hover:text-success-500"
+                                  aria-label={`Send WhatsApp reminder to ${customer.name}`}
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </a>
+                              )}
+                              {customer?.email && (
+                                <a
+                                  href={mailtoLink(customer.email, "Payment reminder", reminderMessage)}
+                                  className="text-muted-foreground hover:text-accent-700"
+                                  aria-label={`Send email reminder to ${customer.name}`}
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="flex flex-col gap-3 p-3 md:hidden">
+                {customerAgings.map((a) => {
+                  const customer = customerById.get(a.customerId);
+                  const reminderMessage = `Hi ${customer?.name ?? "there"}, this is a reminder that you have an outstanding balance of ${a.currency} ${a.total.toFixed(2)} across ${a.invoiceCount} invoice(s). Please let us know if you have any questions.`;
+                  return (
+                    <div key={a.customerId} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-foreground">{customer?.name ?? "—"}</p>
+                        <p className="font-medium tabular-nums text-foreground">
+                          {a.currency} {a.total.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-body-sm text-muted-foreground">
+                        <div>
+                          <p className="text-caption">Current</p>
+                          <p className="tabular-nums text-foreground">{a.buckets.current.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-caption">1-30d</p>
+                          <p className="tabular-nums text-foreground">{a.buckets.d1_30.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-caption">31-60d</p>
+                          <p className="tabular-nums text-foreground">{a.buckets.d31_60.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-caption">60+d</p>
+                          <p className={`tabular-nums ${a.buckets.d60_plus > 0 ? "text-danger-500" : "text-foreground"}`}>
+                            {a.buckets.d60_plus.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                      {(customer?.phone || customer?.email) && (
+                        <div className="flex items-center gap-4">
+                          {customer?.phone && (
+                            <a
+                              href={whatsappLink(customer.phone, reminderMessage)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 text-body-sm font-medium text-success-500"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              WhatsApp
+                            </a>
+                          )}
+                          {customer?.email && (
+                            <a
+                              href={mailtoLink(customer.email, "Payment reminder", reminderMessage)}
+                              className="inline-flex items-center gap-1.5 text-body-sm font-medium text-accent-700"
+                            >
+                              <Mail className="h-4 w-4" />
+                              Email
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
