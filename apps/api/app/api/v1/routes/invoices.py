@@ -20,6 +20,7 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 def _to_out(invoice: Invoice) -> InvoiceOut:
     out = InvoiceOut.model_validate(invoice)
     out.line_items = [InvoiceLineItemOut.model_validate(li) for li in getattr(invoice, "line_items_loaded", [])]
+    out.effective_quotation_status = invoices_repo.effective_quotation_status(invoice)
     return out
 
 

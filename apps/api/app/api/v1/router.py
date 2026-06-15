@@ -17,6 +17,7 @@ from app.api.v1.routes import (
     payments,
     price_lists,
     public,
+    quotations,
     recurring_invoices,
     reports,
     suppliers,
@@ -38,6 +39,7 @@ api_router.include_router(items.router)
 api_router.include_router(item_categories.router)
 api_router.include_router(price_lists.router)
 api_router.include_router(invoices.router)
+api_router.include_router(quotations.router)
 api_router.include_router(payments.router)
 api_router.include_router(expenses.router)
 api_router.include_router(reports.router)

@@ -6,7 +6,7 @@ from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Integer, Nu
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import InvoiceLanguage, InvoiceStatus, InvoiceType, PdfTemplate, VatCategory
+from app.models.enums import InvoiceLanguage, InvoiceStatus, InvoiceType, PdfTemplate, QuotationStatus, VatCategory
 
 
 class InvoiceNumberSequence(Base, UUIDPrimaryKeyMixin, TenantScopedMixin):
@@ -65,6 +65,10 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
 
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    quotation_status: Mapped[QuotationStatus | None] = mapped_column(
+        Enum(QuotationStatus, native_enum=False), nullable=True
+    )
 
 
 class InvoiceLineItem(Base, UUIDPrimaryKeyMixin):

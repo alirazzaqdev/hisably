@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import InvoiceLanguage, InvoiceStatus, InvoiceType, PdfTemplate, VatCategory
+from app.models.enums import InvoiceLanguage, InvoiceStatus, InvoiceType, PdfTemplate, QuotationStatus, VatCategory
 
 
 class InvoiceLineItemInput(BaseModel):
@@ -125,4 +125,20 @@ class InvoiceOut(BaseModel):
     void_reason: str | None
     converted_from_id: uuid.UUID | None
     public_token: str | None
+    quotation_status: QuotationStatus | None = None
+    effective_quotation_status: QuotationStatus | None = None
     line_items: list[InvoiceLineItemOut] = Field(default_factory=list)
+
+
+class QuotationStatusUpdate(BaseModel):
+    status: QuotationStatus
+    due_date: date | None = None
+
+
+class QuotationCounts(BaseModel):
+    draft: int
+    pending: int
+    approved: int
+    rejected: int
+    expired: int
+    total: int

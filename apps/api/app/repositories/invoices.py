@@ -1,12 +1,13 @@
 import secrets
 import uuid
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import delete as sa_delete
+from sqlalchemy import and_, delete as sa_delete
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import InvoiceStatus, InvoiceType
+from app.models.enums import InvoiceStatus, InvoiceType, QuotationStatus
 from app.models.invoice import Invoice, InvoiceLineItem, InvoiceNumberSequence
 from app.models.tenant import Tenant
 from app.repositories.invoice_sequences import SEQUENCED_INVOICE_TYPES
@@ -120,6 +121,7 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         tenant_id=tenant.id,
         type=payload.type,
         status=InvoiceStatus.DRAFT,
+        quotation_status=QuotationStatus.DRAFT if payload.type == InvoiceType.QUOTATION else None,
         customer_id=payload.customer_id,
         supplier_id=payload.supplier_id,
         invoice_number=number,
@@ -254,3 +256,84 @@ async def delete(db: AsyncSession, invoice: Invoice) -> None:
     await db.execute(sa_delete(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id))
     await db.delete(invoice)
     await db.flush()
+
+
+def effective_quotation_status(invoice: Invoice) -> QuotationStatus | None:
+    if invoice.quotation_status is None:
+        return None
+    if (
+        invoice.quotation_status == QuotationStatus.PENDING
+        and invoice.due_date is not None
+        and invoice.due_date < date.today()
+    ):
+        return QuotationStatus.EXPIRED
+    return invoice.quotation_status
+
+
+def _quotation_status_condition(status: QuotationStatus, today: date):
+    if status == QuotationStatus.PENDING:
+        return and_(
+            Invoice.quotation_status == QuotationStatus.PENDING,
+            or_(Invoice.due_date.is_(None), Invoice.due_date >= today),
+        )
+    if status == QuotationStatus.EXPIRED:
+        return and_(Invoice.quotation_status == QuotationStatus.PENDING, Invoice.due_date < today)
+    return Invoice.quotation_status == status
+
+
+async def list_quotations(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    *,
+    status: QuotationStatus | None,
+    search: str | None,
+    page: int,
+    page_size: int,
+) -> tuple[list[Invoice], int]:
+    today = date.today()
+    base_filters = [Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.QUOTATION]
+    query = select(Invoice).where(*base_filters)
+    count_query = select(func.count()).select_from(Invoice).where(*base_filters)
+
+    if status is not None:
+        condition = _quotation_status_condition(status, today)
+        query = query.where(condition)
+        count_query = count_query.where(condition)
+
+    if search:
+        pattern = f"%{search}%"
+        condition = or_(Invoice.invoice_number.ilike(pattern), Invoice.draft_number.ilike(pattern))
+        query = query.where(condition)
+        count_query = count_query.where(condition)
+
+    total = (await db.execute(count_query)).scalar_one()
+
+    query = query.order_by(Invoice.issue_date.desc(), Invoice.created_at.desc())
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    invoices = list((await db.execute(query)).scalars().all())
+    for invoice in invoices:
+        invoice.line_items_loaded = await get_line_items(db, invoice.id)
+    return invoices, total
+
+
+async def count_quotations_by_status(db: AsyncSession, tenant_id: uuid.UUID) -> dict[str, int]:
+    today = date.today()
+    base_filters = [Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.QUOTATION]
+    counts: dict[str, int] = {}
+    for s in QuotationStatus:
+        condition = _quotation_status_condition(s, today)
+        result = await db.execute(select(func.count()).select_from(Invoice).where(*base_filters, condition))
+        counts[s.value] = result.scalar_one()
+    counts["total"] = sum(counts.values())
+    return counts
+
+
+async def set_quotation_status(
+    db: AsyncSession, invoice: Invoice, status: QuotationStatus, due_date: date | None
+) -> Invoice:
+    invoice.quotation_status = status
+    if due_date is not None:
+        invoice.due_date = due_date
+    await db.flush()
+    invoice.line_items_loaded = await get_line_items(db, invoice.id)
+    return invoice

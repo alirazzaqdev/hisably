@@ -47,6 +47,14 @@ class InvoiceStatus(str, enum.Enum):
     VOID = "void"
 
 
+class QuotationStatus(str, enum.Enum):
+    DRAFT = "draft"
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
 class PdfTemplate(str, enum.Enum):
     MINIMAL = "minimal"
     CLASSIC = "classic"
