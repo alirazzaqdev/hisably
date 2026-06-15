@@ -34,10 +34,22 @@ function LoginPageContent() {
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-accent-600 to-accent-900 p-12 text-white lg:flex">
-        <Logo size="md" monochrome className="text-white" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.12)_1px,transparent_0)] [background-size:28px_28px]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-white/10 blur-3xl"
+        />
 
-        <div className="flex flex-col gap-6">
-          <h1 className="text-display max-w-md text-white">
+        <Logo size="md" monochrome className="relative text-white" />
+
+        <div className="relative flex flex-col gap-6">
+          <span className="inline-flex w-fit items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-caption font-medium text-white/90">
+            Free for growing businesses
+          </span>
+          <h1 className="max-w-md text-display text-balance text-white">
             Billing &amp; invoicing built for growing businesses.
           </h1>
           <ul className="flex flex-col gap-3">
@@ -50,7 +62,9 @@ function LoginPageContent() {
           </ul>
         </div>
 
-        <p className="text-body-sm text-white/70">© {new Date().getFullYear()} Hisably. All rights reserved.</p>
+        <p className="relative text-body-sm text-white/70">
+          © {new Date().getFullYear()} Hisably. All rights reserved.
+        </p>
       </section>
 
       <section className="flex items-center justify-center px-4 py-12 sm:px-6">
@@ -105,13 +119,13 @@ function LoginForm() {
   }
 
   return (
-    <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+    <Card className="border-0 shadow-none sm:border sm:shadow-md">
       <CardHeader>
-        <CardTitle>Log in</CardTitle>
+        <CardTitle className="text-h1">Log in</CardTitle>
         <CardDescription>Welcome back — enter your details to continue.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -139,7 +153,7 @@ function LoginForm() {
             />
           </div>
 
-          <label className="flex items-center gap-2 text-body-sm text-foreground">
+          <label className="flex min-h-11 items-center gap-2 text-body-sm text-foreground">
             <input
               type="checkbox"
               checked={rememberMe}
@@ -151,7 +165,7 @@ function LoginForm() {
 
           <FormError>{formError}</FormError>
 
-          <Button type="submit" size="lg" className="mt-2" disabled={loginMutation.isPending}>
+          <Button type="submit" size="lg" className="mt-1" disabled={loginMutation.isPending}>
             {loginMutation.isPending ? "Logging in…" : "Log in"}
           </Button>
         </form>
