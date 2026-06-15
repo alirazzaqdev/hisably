@@ -320,9 +320,23 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   return (
     <Card className="max-w-3xl">
       <CardHeader>
-        <CardTitle>{isEditing ? "Edit invoice" : "New invoice"}</CardTitle>
+        <CardTitle>
+          {isEditing
+            ? type === "quotation"
+              ? "Edit quotation"
+              : "Edit invoice"
+            : type === "quotation"
+              ? "New quotation"
+              : "New invoice"}
+        </CardTitle>
         <CardDescription>
-          {isEditing ? "Update this invoice's details." : "Create a new invoice for a customer."}
+          {isEditing
+            ? type === "quotation"
+              ? "Update this quotation's details."
+              : "Update this invoice's details."
+            : type === "quotation"
+              ? "Create a rate offer to send to a customer."
+              : "Create a new invoice for a customer."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -376,7 +390,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="due_date">Due date</Label>
+              <Label htmlFor="due_date">{type === "quotation" ? "Valid until" : "Due date"}</Label>
               <Input id="due_date" type="date" value={dueDate ?? ""} onChange={(e) => setDueDate(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
