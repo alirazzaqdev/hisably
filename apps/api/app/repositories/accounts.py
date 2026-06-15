@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account, AccountTransfer
+from app.models.expense import ExpenseEntry
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment
 from app.schemas.account import AccountCreate, AccountStatementEntry, AccountTransferCreate, AccountUpdate
@@ -77,7 +78,15 @@ async def get_balance(db: AsyncSession, tenant_id: uuid.UUID, account: Account) 
             )
         )
     ).scalar_one()
-    return account.opening_balance + received - paid + transfers_in - transfers_out
+    expenses = (
+        await db.execute(
+            select(func.coalesce(func.sum(ExpenseEntry.amount), 0)).where(
+                ExpenseEntry.tenant_id == tenant_id,
+                ExpenseEntry.account_id == account.id,
+            )
+        )
+    ).scalar_one()
+    return account.opening_balance + received - paid + transfers_in - transfers_out - expenses
 
 
 async def create_transfer(db: AsyncSession, tenant_id: uuid.UUID, payload: AccountTransferCreate) -> AccountTransfer:
@@ -137,6 +146,12 @@ async def get_statement(
             Payment.voided_at.is_(None),
         )
     )
+    expenses_result = await db.execute(
+        select(ExpenseEntry).where(
+            ExpenseEntry.tenant_id == tenant_id,
+            ExpenseEntry.account_id == account.id,
+        )
+    )
     transfers = await list_transfers(db, tenant_id, account.id)
 
     rows: list[tuple[date_type, str, str, Decimal, Decimal]] = []  # (date, created_sort, description, amount_in, amount_out)
@@ -154,6 +169,12 @@ async def get_statement(
             if payment.reference_no:
                 description += f" ({payment.reference_no})"
             rows.append((payment.payment_date, str(payment.created_at), description, Decimal("0"), payment.amount))
+
+    for expense in expenses_result.scalars().all():
+        description = f"Expense: {expense.category}"
+        if expense.notes:
+            description += f" ({expense.notes})"
+        rows.append((expense.expense_date, str(expense.created_at), description, Decimal("0"), expense.amount))
 
     for transfer in transfers:
         if transfer.to_account_id == account.id:

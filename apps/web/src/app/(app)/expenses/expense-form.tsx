@@ -2,16 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormError } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
+import { accountsApi } from "@/lib/api/accounts";
 import { attachmentsApi } from "@/lib/api/attachments";
 import { expensesApi, type Expense, type ExpenseInput } from "@/lib/api/expenses";
+import { type PaymentMethod } from "@/lib/api/payments";
+import { suppliersApi } from "@/lib/api/suppliers";
 import { createOrQueue } from "@/lib/offline/sync-engine";
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "cheque", label: "Cheque" },
+  { value: "other", label: "Other" },
+];
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -29,10 +41,23 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
     expense_date: expense?.expense_date ?? todayIso(),
     notes: expense?.notes ?? "",
     attachment_id: expense?.attachment_id ?? null,
+    location: expense?.location ?? "",
+    payment_method: expense?.payment_method ?? "cash",
+    account_id: expense?.account_id ?? null,
+    supplier_id: expense?.supplier_id ?? null,
   });
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(expense?.attachment_url ?? null);
   const [formError, setFormError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const { data: accounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => accountsApi.list(),
+  });
+  const { data: suppliers } = useQuery({
+    queryKey: ["suppliers", { search: "" }],
+    queryFn: () => suppliersApi.list(),
+  });
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -149,6 +174,65 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">Notes</Label>
             <Input id="notes" value={form.notes ?? ""} onChange={(e) => update("notes", e.target.value)} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={form.location ?? ""}
+                onChange={(e) => update("location", e.target.value)}
+                placeholder="e.g. Site or office location"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="payment_method">Payment method</Label>
+              <Select
+                id="payment_method"
+                value={form.payment_method ?? "cash"}
+                onChange={(e) => update("payment_method", e.target.value as PaymentMethod)}
+              >
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="account">Account</Label>
+              <Select
+                id="account"
+                value={form.account_id ?? ""}
+                onChange={(e) => update("account_id", e.target.value || null)}
+              >
+                <option value="">No account</option>
+                {accounts?.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="supplier">Supplier (optional)</Label>
+              <Select
+                id="supplier"
+                value={form.supplier_id ?? ""}
+                onChange={(e) => update("supplier_id", e.target.value || null)}
+              >
+                <option value="">No supplier</option>
+                {suppliers?.items.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">

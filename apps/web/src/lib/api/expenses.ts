@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api-client";
+import type { PaymentMethod } from "@/lib/api/payments";
 import type { Page } from "@/lib/api/types";
 
 export interface Expense {
@@ -11,6 +12,9 @@ export interface Expense {
   notes: string | null;
   attachment_id: string | null;
   attachment_url: string | null;
+  location: string | null;
+  payment_method: PaymentMethod;
+  account_id: string | null;
 }
 
 export interface ExpenseInput {
@@ -21,6 +25,9 @@ export interface ExpenseInput {
   expense_date: string;
   notes?: string | null;
   attachment_id?: string | null;
+  location?: string | null;
+  payment_method?: PaymentMethod;
+  account_id?: string | null;
 }
 
 export const expensesApi = {

@@ -5,15 +5,51 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Paperclip, Plus, Receipt, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { expensesApi } from "@/lib/api/expenses";
+
+function isImageUrl(url: string): boolean {
+  return /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url) || url.startsWith("data:image/");
+}
+
+function ReceiptThumbnail({ url, onOpen }: { url: string; onOpen: () => void }) {
+  if (!isImageUrl(url)) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-md border border-border bg-muted text-muted-foreground"
+        aria-label="View receipt"
+      >
+        <Paperclip className="h-4 w-4" />
+      </a>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt="Receipt thumbnail"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpen();
+      }}
+      className="h-10 w-10 flex-none cursor-pointer rounded-md border border-border object-cover"
+    />
+  );
+}
 
 export default function ExpensesPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["expenses", { search, category, dateFrom, dateTo }],
@@ -131,6 +167,7 @@ export default function ExpensesPage() {
               <thead className="border-b border-border bg-muted text-body-sm text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Receipt</th>
                   <th className="px-4 py-3 font-medium">Category</th>
                   <th className="px-4 py-3 font-medium">Notes</th>
                   <th className="px-4 py-3 text-right font-medium">VAT paid</th>
@@ -142,12 +179,21 @@ export default function ExpensesPage() {
                   <tr key={expense.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                     <td className="px-4 py-3 text-muted-foreground">{expense.expense_date}</td>
                     <td className="px-4 py-3">
+                      {expense.attachment_url ? (
+                        <ReceiptThumbnail
+                          url={expense.attachment_url}
+                          onOpen={() => setReceiptPreview(expense.attachment_url)}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <Link
                         href={`/expenses/${expense.id}/edit`}
                         className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-accent-700"
                       >
                         {expense.category}
-                        {expense.attachment_id && <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />}
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{expense.notes ?? "—"}</td>
@@ -158,7 +204,7 @@ export default function ExpensesPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t border-border bg-muted/50 font-medium">
-                  <td className="px-4 py-3" colSpan={3}>
+                  <td className="px-4 py-3" colSpan={4}>
                     Total
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{totalVat.toFixed(2)}</td>
@@ -177,12 +223,17 @@ export default function ExpensesPage() {
                 className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                      {expense.category}
-                      {expense.attachment_id && <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </p>
-                    <p className="text-body-sm text-muted-foreground">{expense.expense_date}</p>
+                  <div className="flex items-start gap-2">
+                    {expense.attachment_url && (
+                      <ReceiptThumbnail
+                        url={expense.attachment_url}
+                        onOpen={() => setReceiptPreview(expense.attachment_url)}
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium text-foreground">{expense.category}</p>
+                      <p className="text-body-sm text-muted-foreground">{expense.expense_date}</p>
+                    </div>
                   </div>
                   <p className="text-body font-medium tabular-nums text-foreground">{expense.amount}</p>
                 </div>
@@ -200,6 +251,18 @@ export default function ExpensesPage() {
           </div>
         </>
       )}
+
+      <Dialog open={Boolean(receiptPreview)} onOpenChange={(open) => !open && setReceiptPreview(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Receipt</DialogTitle>
+          </DialogHeader>
+          {receiptPreview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={receiptPreview} alt="Receipt" className="max-h-[75vh] w-full rounded-md object-contain" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.enums import PaymentMethod
+
 
 class ExpenseCreate(BaseModel):
     category: str = Field(min_length=1, max_length=100)
@@ -13,6 +15,9 @@ class ExpenseCreate(BaseModel):
     expense_date: date
     notes: str | None = Field(default=None, max_length=1000)
     attachment_id: uuid.UUID | None = None
+    location: str | None = Field(default=None, max_length=255)
+    payment_method: PaymentMethod = PaymentMethod.CASH
+    account_id: uuid.UUID | None = None
     client_uuid: uuid.UUID | None = None
 
 
@@ -24,6 +29,9 @@ class ExpenseUpdate(BaseModel):
     expense_date: date | None = None
     notes: str | None = Field(default=None, max_length=1000)
     attachment_id: uuid.UUID | None = None
+    location: str | None = Field(default=None, max_length=255)
+    payment_method: PaymentMethod | None = None
+    account_id: uuid.UUID | None = None
 
 
 class ExpenseOut(BaseModel):
@@ -38,3 +46,6 @@ class ExpenseOut(BaseModel):
     notes: str | None
     attachment_id: uuid.UUID | None
     attachment_url: str | None = None
+    location: str | None
+    payment_method: PaymentMethod
+    account_id: uuid.UUID | None

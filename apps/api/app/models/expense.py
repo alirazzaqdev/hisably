@@ -2,10 +2,11 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Numeric, String
+from sqlalchemy import Date, Enum, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.enums import PaymentMethod
 
 
 class ExpenseEntry(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
@@ -18,5 +19,10 @@ class ExpenseEntry(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin)
     expense_date: Mapped[date] = mapped_column(Date)
     attachment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("attachments.id"), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    payment_method: Mapped[PaymentMethod] = mapped_column(
+        Enum(PaymentMethod, native_enum=False), default=PaymentMethod.CASH
+    )
+    account_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
 
     client_uuid: Mapped[uuid.UUID] = mapped_column(unique=True)
