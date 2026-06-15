@@ -1,3 +1,8 @@
+import base64
+import re
+import zlib
+
+
 async def _create_customer(client, auth_headers) -> str:
     resp = await client.post("/api/v1/customers", json={"name": "Acme Trading"}, headers=auth_headers)
     return resp.json()["id"]
@@ -240,6 +245,57 @@ async def test_proforma_invoice_layout_and_pdf(client, auth_headers):
     assert pdf_resp.status_code == 200
     assert pdf_resp.headers["content-type"] == "application/pdf"
     assert pdf_resp.content[:4] == b"%PDF"
+
+
+async def test_tax_invoice_pdf_includes_bank_details(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+
+    tenant_resp = await client.patch(
+        "/api/v1/tenants/me",
+        json={
+            "cheque_payee_name": "Acme Trading LLC",
+            "bank_name": "Emirates Bank",
+            "bank_account_number": "1234567890",
+            "bank_iban": "AE000123456789012345678",
+            "contact_person": "John Doe",
+            "contact_phone": "+971500000000",
+        },
+        headers=auth_headers,
+    )
+    assert tenant_resp.status_code == 200
+
+    create_resp = await client.post(
+        "/api/v1/invoices",
+        json={
+            "type": "tax_invoice",
+            "customer_id": customer_id,
+            "issue_date": "2026-06-01",
+            "line_items": [
+                {"description": "Glass panel", "quantity": "1", "unit_price": "100.00", "vat_category": "standard"},
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    invoice = create_resp.json()
+
+    pdf_resp = await client.get(f"/api/v1/invoices/{invoice['id']}/pdf", headers=auth_headers)
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers["content-type"] == "application/pdf"
+    assert pdf_resp.content[:4] == b"%PDF"
+
+    chunks = []
+    for match in re.findall(rb"stream\r?\n(.*?)endstream", pdf_resp.content, re.DOTALL):
+        match = match.rstrip(b"\r\n")
+        if match.endswith(b"~>"):
+            match = match[:-2]
+        try:
+            chunks.append(zlib.decompress(base64.a85decode(match, adobe=False)))
+        except Exception:
+            chunks.append(match)
+    decoded = b"".join(chunks)
+    assert b"Emirates Bank" in decoded
+    assert b"AE000123456789012345678" in decoded
 
 
 async def test_invoice_template_customization(client, auth_headers):

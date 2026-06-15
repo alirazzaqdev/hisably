@@ -173,6 +173,7 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
     is_arabic = _is_arabic_only(language)
     is_proforma = invoice.type == InvoiceType.PROFORMA
     is_quotation = invoice.type == InvoiceType.QUOTATION
+    is_tax_invoice = invoice.type == InvoiceType.TAX_INVOICE
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -496,8 +497,8 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         elements.append(Paragraph(_label("site_image", language), heading_style))
         elements.append(site_image)
 
-    if is_proforma:
-        footer_text = _proforma_footer_details(tenant, language)
+    if is_tax_invoice:
+        footer_text = _bank_details_footer(tenant, language)
         if footer_text:
             elements.append(Spacer(1, 8 * mm))
             elements.append(Paragraph(footer_text, normal))
@@ -638,7 +639,7 @@ def _invoice_details(invoice: Invoice, language) -> str:
     return "<br/>".join(lines)
 
 
-def _proforma_footer_details(tenant: Tenant, language) -> str | None:
+def _bank_details_footer(tenant: Tenant, language) -> str | None:
     lines: list[str] = []
     if tenant.cheque_payee_name:
         lines.append(f"{_label('make_cheques_payable', language)}: {_rtl(tenant.cheque_payee_name)}")
