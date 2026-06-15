@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { expensesApi } from "@/lib/api/expenses";
 
 function isImageUrl(url: string): boolean {
@@ -104,10 +105,11 @@ export default function ExpensesPage() {
             className="pl-9"
           />
         </div>
-        <select
+        <Select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="h-10 rounded-md border border-border bg-surface px-3 text-body-lg text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:max-w-[180px]"
+          className="sm:max-w-[180px]"
+          aria-label="Filter by category"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -115,7 +117,7 @@ export default function ExpensesPage() {
               {c}
             </option>
           ))}
-        </select>
+        </Select>
         <Input
           type="date"
           value={dateFrom}
