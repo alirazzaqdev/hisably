@@ -107,6 +107,11 @@ export const paymentsApi = {
     apiRequest<Payment>(`/payments/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   void: (id: string, reason: string) =>
     apiRequest<Payment>(`/payments/${id}/void`, { method: "PATCH", body: JSON.stringify({ reason }) }),
+  addAllocations: (id: string, allocations: PaymentAllocationInput[]) =>
+    apiRequest<Payment>(`/payments/${id}/allocations`, {
+      method: "POST",
+      body: JSON.stringify({ allocations }),
+    }),
   remove: (id: string) => apiRequest<void>(`/payments/${id}`, { method: "DELETE" }),
   setChequeStatus: (id: string, chequeStatus: ChequeStatus) =>
     apiRequest<Payment>(`/payments/${id}/cheque-status`, {

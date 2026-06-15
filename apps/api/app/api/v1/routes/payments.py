@@ -14,6 +14,7 @@ from app.schemas.common import Page
 from app.schemas.payment import (
     ChequeStatusUpdate,
     PaymentAllocationOut,
+    PaymentAllocationRequest,
     PaymentCreate,
     PaymentOut,
     PaymentUpdate,
@@ -99,6 +100,26 @@ async def update_payment(
     if payment.voided_at is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Voided payments cannot be edited")
     payment = await payments_repo.update(db, tenant.id, payment, payload)
+    await db.commit()
+    return _to_out(payment)
+
+
+@router.post("/payments/{payment_id}/allocations", response_model=PaymentOut)
+async def add_payment_allocations(
+    payment_id: uuid.UUID,
+    payload: PaymentAllocationRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> PaymentOut:
+    payment = await payments_repo.get_by_id(db, tenant.id, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.voided_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Voided payments cannot be allocated")
+    try:
+        payment = await payments_repo.add_allocations(db, tenant.id, payment, payload.allocations)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     await db.commit()
     return _to_out(payment)
 

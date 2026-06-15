@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.enums import ChequeStatus, InvoiceStatus, PaymentMethod
 from app.models.invoice import Invoice
 from app.models.payment import Payment, PaymentAllocation
-from app.schemas.payment import PaymentCreate, PaymentUpdate
+from app.schemas.payment import PaymentAllocationInput, PaymentCreate, PaymentUpdate
 
 
 async def get_paid_amount(db: AsyncSession, invoice_id: uuid.UUID) -> Decimal:
@@ -163,6 +163,31 @@ async def update(db: AsyncSession, tenant_id: uuid.UUID, payment: Payment, paylo
             invoice = result.scalar_one_or_none()
             if invoice is not None:
                 await _refresh_invoice_status(db, invoice)
+
+    payment.allocations_loaded = await get_allocations(db, payment.id)
+    return payment
+
+
+async def add_allocations(
+    db: AsyncSession, tenant_id: uuid.UUID, payment: Payment, allocations_in: list[PaymentAllocationInput]
+) -> Payment:
+    existing = await get_allocations(db, payment.id)
+    allocated_total = sum((a.amount_allocated for a in existing), Decimal("0"))
+    new_total = sum((a.amount for a in allocations_in), Decimal("0"))
+    if allocated_total + new_total > payment.amount:
+        raise ValueError("Allocations exceed payment amount")
+
+    for alloc in allocations_in:
+        result = await db.execute(
+            select(Invoice).where(Invoice.id == alloc.invoice_id, Invoice.tenant_id == tenant_id)
+        )
+        invoice = result.scalar_one_or_none()
+        if invoice is None:
+            raise ValueError(f"Invoice {alloc.invoice_id} not found")
+
+        db.add(PaymentAllocation(payment_id=payment.id, invoice_id=alloc.invoice_id, amount_allocated=alloc.amount))
+        await db.flush()
+        await _refresh_invoice_status(db, invoice)
 
     payment.allocations_loaded = await get_allocations(db, payment.id)
     return payment

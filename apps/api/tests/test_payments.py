@@ -160,6 +160,50 @@ async def test_cheque_payment_tracking_and_bounce(client, auth_headers):
     assert invoice_resp3.json()["status"] == "paid"
 
 
+async def test_on_account_payment_can_be_allocated_later(client, auth_headers):
+    customer_id = await _create_customer(client, auth_headers)
+    invoice = await _create_invoice(client, auth_headers, customer_id, unit_price="100.00")
+    invoice_id = invoice["id"]
+
+    payment_resp = await client.post(
+        "/api/v1/payments",
+        json={
+            "customer_id": customer_id,
+            "amount": "105.00",
+            "method": "cash",
+            "payment_date": "2026-06-05",
+            "allocations": [],
+        },
+        headers=auth_headers,
+    )
+    assert payment_resp.status_code == 201
+    payment = payment_resp.json()
+    assert payment["allocations"] == []
+
+    invoice_resp = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp.json()["status"] == "sent"
+
+    over_alloc = await client.post(
+        f"/api/v1/payments/{payment['id']}/allocations",
+        json={"allocations": [{"invoice_id": invoice_id, "amount": "200.00"}]},
+        headers=auth_headers,
+    )
+    assert over_alloc.status_code == 400
+
+    alloc_resp = await client.post(
+        f"/api/v1/payments/{payment['id']}/allocations",
+        json={"allocations": [{"invoice_id": invoice_id, "amount": "105.00"}]},
+        headers=auth_headers,
+    )
+    assert alloc_resp.status_code == 200
+    allocated = alloc_resp.json()
+    assert len(allocated["allocations"]) == 1
+    assert allocated["allocations"][0]["amount_allocated"] == "105.00"
+
+    invoice_resp2 = await client.get(f"/api/v1/invoices/{invoice_id}", headers=auth_headers)
+    assert invoice_resp2.json()["status"] == "paid"
+
+
 async def test_void_payment_reverses_balance_and_invoice_status(client, auth_headers):
     account_resp = await client.post(
         "/api/v1/accounts", json={"name": "Cash Drawer", "type": "cash", "opening_balance": "0.00"}, headers=auth_headers

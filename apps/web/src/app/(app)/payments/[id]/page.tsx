@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,10 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
     queryKey: ["invoices", "all"],
     queryFn: () => invoicesApi.list({ pageSize: 100 }),
   });
+  const { data: receivables } = useQuery({
+    queryKey: ["receivables"],
+    queryFn: () => paymentsApi.receivables(),
+  });
 
   const [accountId, setAccountId] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
@@ -58,6 +62,9 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
   const [voidReason, setVoidReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [newAllocations, setNewAllocations] = useState<Record<string, string>>({});
+  const [allocationError, setAllocationError] = useState<string | null>(null);
+  const [allocationSuccess, setAllocationSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!payment) return;
@@ -121,6 +128,58 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
     },
   });
 
+  const allocateMutation = useMutation({
+    mutationFn: () =>
+      paymentsApi.addAllocations(
+        id,
+        Object.entries(newAllocations)
+          .filter(([, amount]) => Number(amount) > 0)
+          .map(([invoice_id, amount]) => ({ invoice_id, amount }))
+      ),
+    onSuccess: () => {
+      setAllocationError(null);
+      setAllocationSuccess("Allocation saved.");
+      setNewAllocations({});
+      invalidate();
+    },
+    onError: (error) => {
+      setAllocationSuccess(null);
+      if (error instanceof ApiError && typeof error.detail === "string") {
+        setAllocationError(error.detail);
+        return;
+      }
+      setAllocationError("Something went wrong. Please try again.");
+    },
+  });
+
+  function toggleAllocation(invoiceId: string, balance: string, checked: boolean) {
+    setNewAllocations((prev) => {
+      const next = { ...prev };
+      if (checked) {
+        next[invoiceId] = balance;
+      } else {
+        delete next[invoiceId];
+      }
+      return next;
+    });
+  }
+
+  function updateAllocation(invoiceId: string, value: string) {
+    setNewAllocations((prev) => ({ ...prev, [invoiceId]: value }));
+  }
+
+  function handleAllocate(event: React.FormEvent) {
+    event.preventDefault();
+    setAllocationError(null);
+    setAllocationSuccess(null);
+    const total = Object.values(newAllocations).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    if (total <= 0) {
+      setAllocationError("Enter at least one allocation amount.");
+      return;
+    }
+    allocateMutation.mutate();
+  }
+
   function handleSave(event: React.FormEvent) {
     event.preventDefault();
     setFormError(null);
@@ -143,6 +202,17 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
   const customerById = new Map(customers?.items.map((c) => [c.id, c]) ?? []);
   const invoiceById = new Map(invoices?.items.map((inv) => [inv.id, inv]) ?? []);
   const isVoided = !!payment?.voided_at;
+
+  const allocatedTotal = payment?.allocations.reduce((sum, a) => sum + Number(a.amount_allocated), 0) ?? 0;
+  const unallocatedAmount = payment ? Number(payment.amount) - allocatedTotal : 0;
+  const newAllocationTotal = Object.values(newAllocations).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const customerReceivables = useMemo(
+    () =>
+      (receivables ?? []).filter(
+        (r) => r.customer_id === payment?.customer_id && !payment?.allocations.some((a) => a.invoice_id === r.invoice_id)
+      ),
+    [receivables, payment]
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -307,6 +377,84 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
               </form>
             </CardContent>
           </Card>
+
+          {!isVoided && payment.customer_id && unallocatedAmount > 0 && (
+            <Card className="max-w-2xl">
+              <CardHeader>
+                <CardTitle>Allocate to invoices</CardTitle>
+                <CardDescription>
+                  Unallocated balance: {payment.amount} − {allocatedTotal.toFixed(2)} = {unallocatedAmount.toFixed(2)}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form className="flex flex-col gap-3" onSubmit={handleAllocate}>
+                  {customerReceivables.length === 0 && (
+                    <p className="text-body-sm text-muted-foreground">No outstanding invoices for this customer.</p>
+                  )}
+                  {customerReceivables.length > 0 && (
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <table className="w-full text-left text-body-sm">
+                        <thead className="border-b border-border bg-muted text-caption text-muted-foreground">
+                          <tr>
+                            <th className="w-10 px-3 py-2" />
+                            <th className="px-3 py-2 font-medium">Invoice</th>
+                            <th className="px-3 py-2 text-right font-medium">Balance due</th>
+                            <th className="w-32 px-3 py-2 text-right font-medium">Allocate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {customerReceivables.map((r) => {
+                            const checked = r.invoice_id in newAllocations;
+                            const defaultAmount = Math.min(Number(r.balance_due), unallocatedAmount).toFixed(2);
+                            return (
+                              <tr key={r.invoice_id} className="border-b border-border last:border-0">
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => toggleAllocation(r.invoice_id, defaultAmount, e.target.checked)}
+                                  />
+                                </td>
+                                <td className="px-3 py-2">{r.invoice_number ?? r.draft_number}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">
+                                  {r.currency} {r.balance_due}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    disabled={!checked}
+                                    value={newAllocations[r.invoice_id] ?? ""}
+                                    onChange={(e) => updateAllocation(r.invoice_id, e.target.value)}
+                                    className="text-right"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="text-body-sm text-muted-foreground">
+                    Allocating: {newAllocationTotal.toFixed(2)} of {unallocatedAmount.toFixed(2)} unallocated
+                  </p>
+
+                  <FormError>{allocationError}</FormError>
+                  <FormSuccess>{allocationSuccess}</FormSuccess>
+
+                  {customerReceivables.length > 0 && (
+                    <div>
+                      <Button type="submit" disabled={allocateMutation.isPending}>
+                        {allocateMutation.isPending ? "Allocating…" : "Allocate"}
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
           {!isVoided && (
             <Card className="max-w-2xl border-danger-500/30">

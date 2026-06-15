@@ -54,6 +54,10 @@ class PaymentVoidRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class PaymentAllocationRequest(BaseModel):
+    allocations: list[PaymentAllocationInput] = Field(min_length=1)
+
+
 class PaymentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
