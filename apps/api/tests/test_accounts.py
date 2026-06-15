@@ -79,3 +79,55 @@ async def test_payment_updates_account_balance(client, auth_headers):
 
     get_resp = await client.get(f"/api/v1/accounts/{account['id']}", headers=auth_headers)
     assert get_resp.json()["current_balance"] == "150.00"
+
+
+async def test_account_transfer_moves_balance(client, auth_headers):
+    cash_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Cash Drawer", "type": "cash", "opening_balance": "500.00"}, headers=auth_headers
+    )
+    cash = cash_resp.json()
+    bank_resp = await client.post(
+        "/api/v1/accounts", json={"name": "Main Bank", "type": "bank", "opening_balance": "0.00"}, headers=auth_headers
+    )
+    bank = bank_resp.json()
+
+    transfer_resp = await client.post(
+        "/api/v1/accounts/transfers",
+        json={
+            "from_account_id": cash["id"],
+            "to_account_id": bank["id"],
+            "amount": "200.00",
+            "transfer_date": "2026-06-15",
+            "notes": "Deposit cash to bank",
+        },
+        headers=auth_headers,
+    )
+    assert transfer_resp.status_code == 201
+    transfer = transfer_resp.json()
+    assert transfer["amount"] == "200.00"
+
+    cash_after = await client.get(f"/api/v1/accounts/{cash['id']}", headers=auth_headers)
+    assert cash_after.json()["current_balance"] == "300.00"
+    bank_after = await client.get(f"/api/v1/accounts/{bank['id']}", headers=auth_headers)
+    assert bank_after.json()["current_balance"] == "200.00"
+
+    list_resp = await client.get("/api/v1/accounts/transfers", headers=auth_headers)
+    assert list_resp.status_code == 200
+    assert len(list_resp.json()) == 1
+
+    list_for_bank = await client.get(
+        "/api/v1/accounts/transfers", params={"account_id": bank["id"]}, headers=auth_headers
+    )
+    assert len(list_for_bank.json()) == 1
+
+    same_account_resp = await client.post(
+        "/api/v1/accounts/transfers",
+        json={
+            "from_account_id": cash["id"],
+            "to_account_id": cash["id"],
+            "amount": "10.00",
+            "transfer_date": "2026-06-15",
+        },
+        headers=auth_headers,
+    )
+    assert same_account_resp.status_code == 400
