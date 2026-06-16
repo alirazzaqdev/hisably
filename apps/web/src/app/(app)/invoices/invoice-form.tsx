@@ -79,7 +79,7 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
+export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defaultType?: InvoiceType }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -107,7 +107,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   });
   const { data: tenant } = useQuery({ queryKey: ["tenant", "me"], queryFn: tenantsApi.me });
 
-  const [type, setType] = useState<InvoiceType>(invoice?.type ?? typeParam ?? "tax_invoice");
+  const [type, setType] = useState<InvoiceType>(invoice?.type ?? typeParam ?? defaultType ?? "tax_invoice");
   const [customerId, setCustomerId] = useState(invoice?.customer_id ?? "");
   const [supplierId, setSupplierId] = useState(invoice?.supplier_id ?? "");
   const [convertedFromId, setConvertedFromId] = useState<string | null>(invoice?.converted_from_id ?? null);

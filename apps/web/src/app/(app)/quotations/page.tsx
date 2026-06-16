@@ -109,7 +109,7 @@ export default function QuotationsPage() {
         description="Send rate offers to customers. Convert approved quotations to invoices when work is confirmed."
         action={
           <Button asChild>
-            <Link href="/invoices/new?type=quotation">
+            <Link href="/quotations/new">
               <Plus className="h-4 w-4" />
               New quotation
             </Link>
@@ -161,7 +161,7 @@ export default function QuotationsPage() {
           }
           action={
             <Button asChild>
-              <Link href="/invoices/new?type=quotation">
+              <Link href="/quotations/new">
                 <Plus className="h-4 w-4" />
                 New quotation
               </Link>
