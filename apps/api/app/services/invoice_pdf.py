@@ -15,7 +15,8 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from PIL import Image as PILImage
+from reportlab.platypus import HRFlowable, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.models.enums import InvoiceType, PdfTemplate
 from app.models.invoice import Invoice
@@ -238,6 +239,14 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         parent=normal,
         fontSize=8.5,
         textColor=colors.HexColor("#94a3b8"),
+        alignment=TA_CENTER,
+    )
+    site_label_style = ParagraphStyle(
+        "SiteLabel",
+        parent=normal,
+        fontSize=10,
+        fontName=bold_font,
+        textColor=colors.HexColor("#0f172a"),
         alignment=TA_CENTER,
     )
 
@@ -513,19 +522,29 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         before_image = _load_site_image(invoice.site_image_url)
         after_image = _load_site_image(invoice.site_image_after_url)
         if before_image is not None or after_image is not None:
-            elements.append(Spacer(1, 6 * mm))
-            elements.append(Paragraph(_label("site_image", language), heading_style))
-            before_cell = [Paragraph(_label("site_image_before", language), muted_small), before_image] if before_image else []
-            after_cell = [Paragraph(_label("site_image_after", language), muted_small), after_image] if after_image else []
+            site_section: list = [
+                Spacer(1, 6 * mm),
+                Paragraph(_label("site_image", language), heading_style),
+            ]
+            before_cell = [Paragraph(_label("site_image_before", language), site_label_style), Spacer(1, 2 * mm), before_image] if before_image else []
+            after_cell = [Paragraph(_label("site_image_after", language), site_label_style), Spacer(1, 2 * mm), after_image] if after_image else []
             if before_cell and after_cell:
                 images_row = [after_cell, before_cell] if is_arabic else [before_cell, after_cell]
-                images_table = Table([images_row], colWidths=[80 * mm, 80 * mm])
-                images_table.setStyle(TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
-                elements.append(images_table)
+                images_table = Table([images_row], colWidths=[85 * mm, 85 * mm])
+                images_table.setStyle(
+                    TableStyle([
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ])
+                )
+                site_section.append(images_table)
             elif before_cell:
-                elements.extend(before_cell)
+                site_section.extend(before_cell)
             elif after_cell:
-                elements.extend(after_cell)
+                site_section.extend(after_cell)
+            elements.append(KeepTogether(site_section))
     else:
         site_image = _load_site_image(invoice.site_image_url)
         if site_image is not None:
@@ -668,6 +687,10 @@ def _load_signature(signature_url: str | None) -> Image | None:
         return None
 
 
+_SITE_IMAGE_MAX_W = 80 * mm
+_SITE_IMAGE_MAX_H = 80 * mm
+
+
 def _load_site_image(site_image_url: str | None) -> Image | None:
     if not site_image_url:
         return None
@@ -675,7 +698,17 @@ def _load_site_image(site_image_url: str | None) -> Image | None:
     if data is None:
         return None
     try:
-        return Image(io.BytesIO(data), width=80 * mm, height=60 * mm, kind="proportional")
+        pil_img = PILImage.open(io.BytesIO(data))
+        if pil_img.mode not in ("RGB", "L"):
+            pil_img = pil_img.convert("RGB")
+        img_w, img_h = pil_img.size
+        scale = min(_SITE_IMAGE_MAX_W / img_w, _SITE_IMAGE_MAX_H / img_h)
+        draw_w = img_w * scale
+        draw_h = img_h * scale
+        out_buf = io.BytesIO()
+        pil_img.save(out_buf, format="JPEG", quality=85)
+        out_buf.seek(0)
+        return Image(out_buf, width=draw_w, height=draw_h)
     except Exception:
         return None
 

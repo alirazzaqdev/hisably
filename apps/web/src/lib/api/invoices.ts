@@ -147,11 +147,31 @@ export const invoicesApi = {
   payments: (id: string) => apiRequest<InvoicePayment[]>(`/invoices/${id}/payments`),
   publicPdfUrl: (token: string) => `${API_BASE_URL}/public/invoices/${token}/pdf`,
   pdfBlob: async (id: string): Promise<Blob> => {
-    const { accessToken } = useAuthStore.getState();
-    const res = await fetch(`${API_BASE_URL}/invoices/${id}/pdf`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    });
-    if (!res.ok) throw new ApiError(res.status, res.statusText);
+    const doFetch = () => {
+      const { accessToken } = useAuthStore.getState();
+      return fetch(`${API_BASE_URL}/invoices/${id}/pdf`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
+    };
+    let res = await doFetch();
+    if (res.status === 401) {
+      const { refreshToken, setSession, clearSession } = useAuthStore.getState();
+      if (refreshToken) {
+        const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSession({ accessToken: data.access_token, refreshToken: data.refresh_token });
+          res = await doFetch();
+        } else {
+          clearSession();
+        }
+      }
+    }
+    if (!res.ok) throw new ApiError(res.status, await res.text().then((t) => t || res.statusText));
     return res.blob();
   },
 };

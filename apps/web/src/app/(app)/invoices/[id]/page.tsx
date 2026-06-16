@@ -215,7 +215,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
       toast({
         title: "Fix these before downloading the PDF",
         description: issues.map((s) => `• ${s}`).join("\n"),
-        variant: "destructive",
+        variant: "danger",
       });
       return;
     }
@@ -233,7 +233,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (err) {
-      toast({ title: "PDF failed", description: errorMessage(err, "Could not generate PDF. Please try again."), variant: "destructive" });
+      toast({ title: "PDF failed", description: errorMessage(err, "Could not generate PDF. Please try again."), variant: "danger" });
     } finally {
       setDownloading(false);
     }
