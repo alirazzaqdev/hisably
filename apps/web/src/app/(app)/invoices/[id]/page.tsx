@@ -192,8 +192,16 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     try {
       const blob = await invoicesApi.pdfBlob(invoice.id);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      const filename = invoice.invoice_number ?? invoice.draft_number ?? "document";
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${filename}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      toast({ title: "PDF failed", description: errorMessage(err, "Could not generate PDF. Please try again."), variant: "destructive" });
     } finally {
       setDownloading(false);
     }

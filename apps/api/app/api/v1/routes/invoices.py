@@ -1,6 +1,9 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_tenant
@@ -172,10 +175,14 @@ async def get_invoice_pdf(
     if invoice.customer_id is not None:
         customer = await customers_repo.get_by_id(db, tenant.id, invoice.customer_id)
 
-    pdf_bytes = render_invoice_pdf(invoice, tenant, customer)
+    try:
+        pdf_bytes = render_invoice_pdf(invoice, tenant, customer)
+    except Exception as exc:
+        logger.exception("PDF generation failed for invoice %s: %s", invoice_id, exc)
+        raise HTTPException(status_code=500, detail="PDF generation failed. Please try again.") from exc
     filename = f"{invoice.invoice_number or invoice.draft_number}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
