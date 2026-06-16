@@ -535,26 +535,263 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
 
           <div className="flex flex-col gap-2">
             <Label>Line items</Label>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="w-full text-left text-body-sm">
+
+            {/* Mobile / tablet stacked cards — hidden on lg+ where the table fits */}
+            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border lg:hidden">
+              {lines.map((line, index) => {
+                const computed = computeLine(line, country, vatRateOverride);
+                const lineUnit = items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
+                const isSqm = lineUnit === "sqm";
+                const isLm = lineUnit === "lm";
+                const showSizeRow = type !== "proforma" && (isSqm || isLm);
+                const isOverridden = Boolean(line.override_total);
+                return (
+                  <div key={index} className="flex flex-col gap-3 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-caption font-medium text-muted-foreground">Line {index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeLine(index)}
+                        className="text-muted-foreground hover:text-danger-500"
+                        aria-label="Remove line"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Item</Label>
+                      <Select value={line.item_id ?? ""} onChange={(e) => applyItem(index, e.target.value)}>
+                        <option value="">Custom</option>
+                        {items?.items.map((i) => (
+                          <option key={i.id} value={i.id}>{i.name}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Description</Label>
+                      <Textarea
+                        required
+                        rows={2}
+                        value={line.description}
+                        onChange={(e) => updateLine(index, { description: e.target.value })}
+                      />
+                      {language !== "en" && (
+                        <Textarea
+                          rows={2}
+                          className="mt-1"
+                          dir="rtl"
+                          placeholder="الوصف بالعربية"
+                          value={line.description_ar ?? ""}
+                          onChange={(e) => updateLine(index, { description_ar: e.target.value || null })}
+                        />
+                      )}
+                    </div>
+                    {type === "proforma" ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1.5">
+                            <Label>Qty</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.quantity ?? "1"}
+                              onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <Label>Final payment</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.final_payment_factor ?? "1"}
+                              onChange={(e) => updateLine(index, { final_payment_factor: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label>Rate</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={line.unit_price}
+                            onChange={(e) => updateLine(index, { unit_price: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-body-sm text-muted-foreground">Total</span>
+                          <div className="flex flex-col items-end gap-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="w-36 text-right"
+                              placeholder={computed.computedGross.toFixed(2)}
+                              value={line.override_total ?? ""}
+                              onChange={(e) => updateLine(index, { override_total: e.target.value || null })}
+                            />
+                            {isOverridden && (
+                              <span className="rounded bg-muted px-1 py-0.5 text-caption text-muted-foreground">edited</span>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {showSizeRow && (
+                          <div className="flex flex-wrap gap-3">
+                            {isSqm ? (
+                              <>
+                                <div className="flex flex-col gap-1.5">
+                                  <Label htmlFor={`m_width_mm_${index}`} className="text-caption">Width (mm)</Label>
+                                  <Input
+                                    id={`m_width_mm_${index}`}
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    className="w-28"
+                                    value={line.width_mm ?? ""}
+                                    onChange={(e) => updateLine(index, { width_mm: e.target.value })}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <Label htmlFor={`m_height_mm_${index}`} className="text-caption">Height (mm)</Label>
+                                  <Input
+                                    id={`m_height_mm_${index}`}
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    className="w-28"
+                                    value={line.height_mm ?? ""}
+                                    onChange={(e) => updateLine(index, { height_mm: e.target.value })}
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col gap-1.5">
+                                <Label htmlFor={`m_length_mm_${index}`} className="text-caption">Length (mm)</Label>
+                                <Input
+                                  id={`m_length_mm_${index}`}
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  className="w-28"
+                                  value={line.length_mm ?? ""}
+                                  onChange={(e) => updateLine(index, { length_mm: e.target.value })}
+                                />
+                              </div>
+                            )}
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor={`m_qty_${index}`} className="text-caption">Qty</Label>
+                              <Input
+                                id={`m_qty_${index}`}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="w-24"
+                                value={line.quantity ?? "1"}
+                                onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <Label className="text-caption">{isSqm ? "Total SQM" : "Total LM"}</Label>
+                              <span className="flex h-11 items-center text-body-sm tabular-nums text-muted-foreground">
+                                {computed.quantity.toFixed(4)}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor={`m_override_total_${index}`} className="text-caption">Line total override</Label>
+                              <Input
+                                id={`m_override_total_${index}`}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="w-28"
+                                placeholder={computed.computedGross.toFixed(2)}
+                                value={line.override_total ?? ""}
+                                onChange={(e) => updateLine(index, { override_total: e.target.value || null })}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1.5">
+                            <Label>Qty</Label>
+                            {showSizeRow ? (
+                              <span className="flex h-11 items-center text-body-sm tabular-nums text-muted-foreground" title="Total SQM/LM">
+                                {computed.quantity.toFixed(4)}
+                              </span>
+                            ) : (
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={line.quantity ?? "1"}
+                                onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                              />
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <Label>Unit price</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.unit_price}
+                              onChange={(e) => updateLine(index, { unit_price: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label>VAT</Label>
+                          <Select
+                            value={line.vat_category ?? "standard"}
+                            onChange={(e) => updateLine(index, { vat_category: e.target.value as VatCategory })}
+                          >
+                            {VAT_CATEGORIES.map((vat) => (
+                              <option key={vat.value} value={vat.value}>{vat.label}</option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-body-sm text-muted-foreground">Total</span>
+                          <span className="tabular-nums font-medium">
+                            {computed.lineTotal.toFixed(2)}
+                            {isOverridden && (
+                              <span className="ml-1 rounded bg-muted px-1 py-0.5 text-caption text-muted-foreground">edited</span>
+                            )}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table — hidden below lg where the sidebar + padding leaves too little room */}
+            <div className="hidden overflow-hidden rounded-lg border border-border lg:block">
+              <table className="w-full table-fixed text-left text-body-sm">
                 <thead className="border-b border-border bg-muted text-caption text-muted-foreground">
                   {type === "proforma" ? (
                     <tr>
-                      <th className="px-3 py-2 font-medium">Item</th>
+                      <th className="w-28 px-3 py-2 font-medium">Item</th>
                       <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="w-20 px-3 py-2 font-medium">QTY</th>
-                      <th className="w-28 px-3 py-2 font-medium">Final Payment</th>
+                      <th className="w-24 px-3 py-2 font-medium">QTY</th>
+                      <th className="w-24 px-3 py-2 font-medium">Final Payment</th>
                       <th className="w-28 px-3 py-2 font-medium">Rate</th>
-                      <th className="w-24 px-3 py-2 text-right font-medium">Total</th>
+                      <th className="w-28 px-3 py-2 text-right font-medium">Total</th>
                       <th className="w-10 px-2 py-2" />
                     </tr>
                   ) : (
                     <tr>
-                      <th className="px-3 py-2 font-medium">Item</th>
+                      <th className="w-28 px-3 py-2 font-medium">Item</th>
                       <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="w-20 px-3 py-2 font-medium">Qty</th>
+                      <th className="w-24 px-3 py-2 font-medium">Qty</th>
                       <th className="w-28 px-3 py-2 font-medium">Unit price</th>
-                      <th className="w-32 px-3 py-2 font-medium">VAT</th>
+                      <th className="w-44 px-3 py-2 font-medium">VAT</th>
                       <th className="w-24 px-3 py-2 text-right font-medium">Total</th>
                       <th className="w-10 px-2 py-2" />
                     </tr>
@@ -575,9 +812,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             <Select value={line.item_id ?? ""} onChange={(e) => applyItem(index, e.target.value)}>
                               <option value="">Custom</option>
                               {items?.items.map((i) => (
-                                <option key={i.id} value={i.id}>
-                                  {i.name}
-                                </option>
+                                <option key={i.id} value={i.id}>{i.name}</option>
                               ))}
                             </Select>
                           </td>
@@ -585,14 +820,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             <Textarea
                               required
                               rows={2}
-                              className="min-w-[14rem]"
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
                             {language !== "en" && (
                               <Textarea
                                 rows={2}
-                                className="mt-1 min-w-[14rem]"
+                                className="mt-1"
                                 dir="rtl"
                                 placeholder="الوصف بالعربية"
                                 value={line.description_ar ?? ""}
@@ -627,7 +861,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                               onChange={(e) => updateLine(index, { unit_price: e.target.value })}
                             />
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums">
+                          <td className="px-3 py-2">
                             <Input
                               type="number"
                               step="0.01"
@@ -663,9 +897,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             <Select value={line.item_id ?? ""} onChange={(e) => applyItem(index, e.target.value)}>
                               <option value="">Custom</option>
                               {items?.items.map((i) => (
-                                <option key={i.id} value={i.id}>
-                                  {i.name}
-                                </option>
+                                <option key={i.id} value={i.id}>{i.name}</option>
                               ))}
                             </Select>
                           </td>
@@ -673,14 +905,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             <Textarea
                               required
                               rows={2}
-                              className="min-w-[14rem]"
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
                             {language !== "en" && (
                               <Textarea
                                 rows={2}
-                                className="mt-1 min-w-[14rem]"
+                                className="mt-1"
                                 dir="rtl"
                                 placeholder="الوصف بالعربية"
                                 value={line.description_ar ?? ""}
