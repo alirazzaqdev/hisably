@@ -185,11 +185,11 @@ describe("computeInvoiceTotals", () => {
 
   it("applies the country's default VAT rate for other countries", () => {
     const totals = computeInvoiceTotals(lines, "SA");
-    expect(totals.lines[0].vatRate).toBe(15);
+    expect(totals.lines[0]!.vatRate).toBe(15);
   });
 
   it("applies a standard rate override when provided", () => {
     const totals = computeInvoiceTotals(lines, "AE", 0, 8);
-    expect(totals.lines[0].vatRate).toBe(8);
+    expect(totals.lines[0]!.vatRate).toBe(8);
   });
 });
