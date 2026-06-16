@@ -245,6 +245,10 @@ async def list_paginated(
     if type is not None:
         query = query.where(Invoice.type == type)
         count_query = count_query.where(Invoice.type == type)
+    else:
+        # Quotations are managed via the dedicated /quotations endpoint
+        query = query.where(Invoice.type != InvoiceType.QUOTATION)
+        count_query = count_query.where(Invoice.type != InvoiceType.QUOTATION)
 
     if search:
         pattern = f"%{search}%"

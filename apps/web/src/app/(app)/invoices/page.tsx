@@ -13,9 +13,8 @@ import { suppliersApi } from "@/lib/api/suppliers";
 import { invoicesApi, type InvoiceType } from "@/lib/api/invoices";
 import { InvoiceStatusBadge } from "./status-badge";
 
-const TYPE_LABELS: Record<InvoiceType, string> = {
+const TYPE_LABELS: Partial<Record<InvoiceType, string>> = {
   tax_invoice: "Tax invoice",
-  quotation: "Quotation",
   proforma: "Proforma",
   credit_note: "Credit note",
   debit_note: "Debit note",
@@ -24,7 +23,11 @@ const TYPE_LABELS: Record<InvoiceType, string> = {
 
 const TYPE_FILTERS: { value: InvoiceType | ""; label: string }[] = [
   { value: "", label: "All types" },
-  ...(Object.entries(TYPE_LABELS) as [InvoiceType, string][]).map(([value, label]) => ({ value, label })),
+  { value: "tax_invoice", label: "Tax invoice" },
+  { value: "proforma", label: "Proforma" },
+  { value: "credit_note", label: "Credit note" },
+  { value: "debit_note", label: "Debit note" },
+  { value: "purchase_bill", label: "Purchase bill" },
 ];
 
 export default function InvoicesPage() {
@@ -138,7 +141,7 @@ export default function InvoicesPage() {
                         {invoice.invoice_number ?? invoice.draft_number}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{TYPE_LABELS[invoice.type]}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{TYPE_LABELS[invoice.type] ?? invoice.type}</td>
                     <td className="px-4 py-3 text-muted-foreground">{partyName(invoice)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{invoice.issue_date}</td>
                     <td className="px-4 py-3">
@@ -164,7 +167,7 @@ export default function InvoicesPage() {
                   <div>
                     <p className="font-medium text-foreground">{invoice.invoice_number ?? invoice.draft_number}</p>
                     <p className="text-body-sm text-muted-foreground">
-                      {TYPE_LABELS[invoice.type]} · {partyName(invoice)}
+                      {TYPE_LABELS[invoice.type] ?? invoice.type} · {partyName(invoice)}
                     </p>
                   </div>
                   <InvoiceStatusBadge status={invoice.status} />

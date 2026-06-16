@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TenantScopedMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -46,8 +46,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
 
     notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     terms: Mapped[str | None] = mapped_column(String(2000), nullable=True)
-    site_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    site_image_after_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    site_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    site_image_after_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     pdf_template: Mapped[PdfTemplate] = mapped_column(
         Enum(PdfTemplate, native_enum=False), default=PdfTemplate.MINIMAL

@@ -39,8 +39,8 @@ class TenantUpdate(BaseModel):
     contact_person: str | None = Field(default=None, max_length=255)
     contact_phone: str | None = Field(default=None, max_length=32)
     contact_email: str | None = Field(default=None, max_length=255)
-    stamp_url: str | None = Field(default=None, max_length=500)
-    signature_url: str | None = Field(default=None, max_length=500)
+    stamp_url: str | None = None
+    signature_url: str | None = None
     branding_options: dict[str, dict[str, bool]] | None = None
 
 

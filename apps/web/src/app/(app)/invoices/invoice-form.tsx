@@ -45,7 +45,6 @@ const VAT_CATEGORIES: { value: VatCategory; label: string }[] = [
 
 const DOCUMENT_TYPES: { value: InvoiceType; label: string }[] = [
   { value: "tax_invoice", label: "Tax invoice" },
-  { value: "quotation", label: "Quotation" },
   { value: "proforma", label: "Proforma invoice" },
   { value: "credit_note", label: "Credit note (sales return)" },
   { value: "purchase_bill", label: "Purchase bill" },
