@@ -68,8 +68,17 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       setSuccessMessage(null);
-      if (error instanceof ApiError && typeof error.detail === "string") {
-        setFormError(error.detail);
+      if (error instanceof ApiError) {
+        if (typeof error.detail === "string") {
+          setFormError(error.detail);
+        } else if (Array.isArray(error.detail)) {
+          const msgs = (error.detail as { msg: string; loc: string[] }[])
+            .map((e) => `${e.loc?.slice(1).join(" → ")}: ${e.msg}`)
+            .join("; ");
+          setFormError(msgs || "Validation error. Please check your inputs.");
+        } else {
+          setFormError("Something went wrong. Please try again.");
+        }
         return;
       }
       setFormError("Something went wrong. Please try again.");
@@ -169,13 +178,21 @@ export default function SettingsPage() {
                 <CountrySelect
                   id="country"
                   value={form.country ?? "AE"}
-                  onChange={(code) => update("country", code as TenantUpdateInput["country"])}
+                  onChange={(code) => {
+                    update("country", code as TenantUpdateInput["country"]);
+                    const info = getCountryInfo(code);
+                    if (info) {
+                      update("currency", info.currency);
+                      update("vat_rate", String(info.vatRate));
+                    }
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="currency">Currency</Label>
                 <Input
                   id="currency"
+                  minLength={3}
                   maxLength={3}
                   value={form.currency ?? ""}
                   onChange={(e) => update("currency", e.target.value.toUpperCase())}
