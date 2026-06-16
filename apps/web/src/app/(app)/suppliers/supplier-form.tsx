@@ -72,7 +72,7 @@ export function SupplierForm({ supplier }: { supplier?: Supplier }) {
   }
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
         <CardTitle>{isEditing ? "Edit supplier" : "Add supplier"}</CardTitle>
         <CardDescription>

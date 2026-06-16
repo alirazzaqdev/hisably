@@ -119,7 +119,7 @@ export function PaymentForm() {
   }
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>Record payment</CardTitle>
         <CardDescription>Record a payment received from a customer and allocate it to invoices.</CardDescription>

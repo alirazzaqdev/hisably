@@ -90,7 +90,7 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-h1 text-foreground">Settings</h1>
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle>Business profile</CardTitle>
           <CardDescription>This information appears on your invoices and PDFs.</CardDescription>
@@ -277,7 +277,7 @@ export default function SettingsPage() {
       <BrandingSection />
 
       {user?.role === "owner" && (
-        <Card className="max-w-2xl">
+        <Card>
           <CardHeader>
             <CardTitle>Document fields</CardTitle>
             <CardDescription>
@@ -292,7 +292,7 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle>Account</CardTitle>
           <CardDescription>Your login details.</CardDescription>

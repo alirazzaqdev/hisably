@@ -63,7 +63,7 @@ export function BackupSection() {
   }
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>Backup &amp; restore</CardTitle>
         <CardDescription>

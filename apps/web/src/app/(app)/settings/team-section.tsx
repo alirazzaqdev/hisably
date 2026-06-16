@@ -61,7 +61,7 @@ export function TeamSection() {
   const staff = users?.filter((u) => u.role === "staff") ?? [];
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>Team</CardTitle>
         <CardDescription>Invite staff members and control which sections they can access.</CardDescription>

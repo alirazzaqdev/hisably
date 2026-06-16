@@ -83,7 +83,7 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
   }
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
         <CardTitle>{isEditing ? "Edit customer" : "Add customer"}</CardTitle>
         <CardDescription>

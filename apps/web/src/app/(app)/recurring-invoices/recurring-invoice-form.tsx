@@ -124,7 +124,7 @@ export function RecurringInvoiceForm() {
   }
 
   return (
-    <Card className="max-w-3xl">
+    <Card>
       <CardHeader>
         <CardTitle>New recurring invoice</CardTitle>
         <CardDescription>Automatically generate a sales invoice on a repeating schedule.</CardDescription>

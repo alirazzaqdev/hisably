@@ -87,7 +87,7 @@ export function BrandingSection() {
   const brandingOptions = tenant?.branding_options ?? {};
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>Branding</CardTitle>
         <CardDescription>

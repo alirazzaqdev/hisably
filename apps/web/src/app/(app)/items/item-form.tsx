@@ -140,7 +140,7 @@ export function ItemForm({ item }: { item?: Item }) {
   }
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
         <CardTitle>{isEditing ? "Edit item" : "Add item"}</CardTitle>
         <CardDescription>
@@ -197,6 +197,21 @@ export function ItemForm({ item }: { item?: Item }) {
                 ))}
               </Select>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="category_id">Category</Label>
+              <Select
+                id="category_id"
+                value={form.category_id ?? ""}
+                onChange={(e) => update("category_id", e.target.value || null)}
+              >
+                <option value="">No category</option>
+                {categories?.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -222,22 +237,6 @@ export function ItemForm({ item }: { item?: Item }) {
                 onChange={(e) => update("purchase_price", e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="category_id">Category</Label>
-            <Select
-              id="category_id"
-              value={form.category_id ?? ""}
-              onChange={(e) => update("category_id", e.target.value || null)}
-            >
-              <option value="">No category</option>
-              {categories?.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5">

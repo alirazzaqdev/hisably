@@ -66,7 +66,7 @@ export function AccountForm({ account }: { account?: Account }) {
   }
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
         <CardTitle>{isEditing ? "Edit account" : "Add account"}</CardTitle>
         <CardDescription>

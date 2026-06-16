@@ -227,7 +227,7 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
 
       {payment && (
         <>
-          <Card className="max-w-2xl">
+          <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <CardTitle>Payment details</CardTitle>
@@ -379,7 +379,7 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
           </Card>
 
           {!isVoided && payment.customer_id && unallocatedAmount > 0 && (
-            <Card className="max-w-2xl">
+            <Card>
               <CardHeader>
                 <CardTitle>Allocate to invoices</CardTitle>
                 <CardDescription>
@@ -457,7 +457,7 @@ export default function PaymentDetailPage({ params }: { params: { id: string } }
           )}
 
           {!isVoided && (
-            <Card className="max-w-2xl border-danger-500/30">
+            <Card className="border-danger-500/30">
               <CardHeader>
                 <CardTitle className="text-danger-500">Void payment</CardTitle>
                 <CardDescription>

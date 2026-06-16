@@ -377,7 +377,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const totals = computeTotals(lines, discountAmount, country, vatRateOverride);
 
   return (
-    <Card className="max-w-3xl">
+    <Card>
       <CardHeader>
         <CardTitle>
           {isEditing

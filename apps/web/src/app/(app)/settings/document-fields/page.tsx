@@ -80,7 +80,7 @@ export default function DocumentFieldsPage() {
       <h1 className="text-h1 text-foreground">Document fields</h1>
 
       <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-        <Card className="max-w-2xl">
+        <Card>
           <CardHeader>
             <CardTitle>Industry profile</CardTitle>
             <CardDescription>
@@ -109,7 +109,7 @@ export default function DocumentFieldsPage() {
           </CardContent>
         </Card>
 
-        <Card className="max-w-2xl">
+        <Card>
           <CardHeader>
             <CardTitle>Header fields</CardTitle>
             <CardDescription>Optional fields shown on the invoice header.</CardDescription>
@@ -119,7 +119,7 @@ export default function DocumentFieldsPage() {
           </CardContent>
         </Card>
 
-        <Card className="max-w-2xl">
+        <Card>
           <CardHeader>
             <CardTitle>Line-item fields</CardTitle>
             <CardDescription>Optional fields shown on each invoice line.</CardDescription>

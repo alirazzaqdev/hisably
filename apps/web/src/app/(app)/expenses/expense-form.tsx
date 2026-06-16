@@ -114,7 +114,7 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
   }
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
         <CardTitle>{isEditing ? "Edit expense" : "Add expense"}</CardTitle>
         <CardDescription>
@@ -123,15 +123,27 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="category">Category</Label>
-            <Input
-              id="category"
-              required
-              value={form.category}
-              onChange={(e) => update("category", e.target.value)}
-              placeholder="e.g. Rent, Utilities, Supplies"
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
+                required
+                value={form.category}
+                onChange={(e) => update("category", e.target.value)}
+                placeholder="e.g. Rent, Utilities, Supplies"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="expense_date">Date</Label>
+              <Input
+                id="expense_date"
+                type="date"
+                required
+                value={form.expense_date}
+                onChange={(e) => update("expense_date", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -158,17 +170,6 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
                 onChange={(e) => update("vat_paid", e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="expense_date">Date</Label>
-            <Input
-              id="expense_date"
-              type="date"
-              required
-              value={form.expense_date}
-              onChange={(e) => update("expense_date", e.target.value)}
-            />
           </div>
 
           <div className="flex flex-col gap-1.5">
