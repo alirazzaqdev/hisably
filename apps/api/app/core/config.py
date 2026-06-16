@@ -59,9 +59,14 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_connect_args(self) -> dict:
         url = self.database_url
+        # statement_cache_size=0 disables asyncpg's prepared-statement cache.
+        # Required after column-type migrations on Neon: Neon invalidates cached
+        # plans on schema changes, but asyncpg re-uses them and gets
+        # InvalidCachedStatementError on the next request.
+        args: dict = {"statement_cache_size": 0}
         if "sslmode=require" in url or "sslmode=verify-full" in url:
-            return {"ssl": "require"}
-        return {}
+            args["ssl"] = "require"
+        return args
 
 
 @lru_cache
