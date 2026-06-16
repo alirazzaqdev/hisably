@@ -186,8 +186,40 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     quotationStatusMutation.mutate({ status: "pending", dueDate: validityDate });
   }
 
+  function validateBeforePdf(): string[] {
+    if (!invoice) return [];
+    const issues: string[] = [];
+    const isSupplierDoc = invoice.type === "purchase_bill" || invoice.type === "debit_note";
+
+    if (invoice.line_items.length === 0) {
+      issues.push("Add at least one line item.");
+    } else if (invoice.line_items.some((li) => !li.description?.trim())) {
+      issues.push("Fill in the description for every line item.");
+    }
+
+    if (!isSupplierDoc && !invoice.customer_id) {
+      issues.push("Assign a customer.");
+    }
+    if (isSupplierDoc && !invoice.supplier_id) {
+      issues.push("Assign a supplier.");
+    }
+
+    return issues;
+  }
+
   async function downloadPdf() {
     if (!invoice) return;
+
+    const issues = validateBeforePdf();
+    if (issues.length > 0) {
+      toast({
+        title: "Fix these before downloading the PDF",
+        description: issues.map((s) => `• ${s}`).join("\n"),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setDownloading(true);
     try {
       const blob = await invoicesApi.pdfBlob(invoice.id);

@@ -59,7 +59,7 @@ export function Toaster() {
             <Icon className="mt-0.5 h-5 w-5 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-body font-medium">{item.title}</p>
-              {item.description && <p className="text-body-sm opacity-90">{item.description}</p>}
+              {item.description && <p className="whitespace-pre-line text-body-sm opacity-90">{item.description}</p>}
             </div>
             <button
               type="button"
