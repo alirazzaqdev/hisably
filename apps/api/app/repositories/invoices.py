@@ -405,6 +405,62 @@ async def mark_expiry_notified(db: AsyncSession, invoice: Invoice) -> None:
     await db.flush()
 
 
+async def mark_expiry_soon_notified(db: AsyncSession, invoice: Invoice) -> None:
+    from datetime import datetime, timezone
+
+    invoice.expiry_soon_notified_at = datetime.now(timezone.utc)
+    await db.flush()
+
+
+async def flip_expired_quotations(db: AsyncSession, tenant_id: uuid.UUID) -> list[Invoice]:
+    """Set quotation_status=EXPIRED for all PENDING quotations past their due_date."""
+    today = date.today()
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.type == InvoiceType.QUOTATION,
+            Invoice.quotation_status == QuotationStatus.PENDING,
+            Invoice.due_date < today,
+        )
+    )
+    invoices = list(result.scalars().all())
+    for inv in invoices:
+        inv.quotation_status = QuotationStatus.EXPIRED
+    await db.flush()
+    return invoices
+
+
+async def list_expiring_soon_quotations(db: AsyncSession, tenant_id: uuid.UUID) -> list[Invoice]:
+    """PENDING quotations whose due_date is exactly 2 days from now, not yet notified."""
+    from datetime import timedelta
+    target = date.today() + timedelta(days=2)
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.type == InvoiceType.QUOTATION,
+            Invoice.quotation_status == QuotationStatus.PENDING,
+            Invoice.due_date == target,
+            Invoice.expiry_soon_notified_at.is_(None),
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def list_overdue_invoices(db: AsyncSession, tenant_id: uuid.UUID) -> list[Invoice]:
+    """TAX_INVOICE + PROFORMA that are past due_date and not fully paid."""
+    today = date.today()
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.type.in_([InvoiceType.TAX_INVOICE, InvoiceType.PROFORMA]),
+            Invoice.status.in_([InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE]),
+            Invoice.due_date.is_not(None),
+            Invoice.due_date < today,
+        )
+    )
+    return list(result.scalars().all())
+
+
 async def set_quotation_status(
     db: AsyncSession, invoice: Invoice, status: QuotationStatus, due_date: date | None
 ) -> Invoice:

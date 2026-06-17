@@ -47,11 +47,22 @@ export function AccountForm({ account }: { account?: Account }) {
     },
   });
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   const deleteMutation = useMutation({
-    mutationFn: () => accountsApi.remove(account!.id),
+    mutationFn: (force: boolean) => accountsApi.remove(account!.id, force),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       router.push("/accounts");
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        setDeleteError(typeof error.detail === "string" ? error.detail : "This account has linked records.");
+        setConfirmingDelete(true);
+      } else {
+        setDeleteError("Something went wrong. Please try again.");
+      }
     },
   });
 
@@ -123,6 +134,28 @@ export function AccountForm({ account }: { account?: Account }) {
 
           <FormError>{formError}</FormError>
 
+          {deleteError && (
+            <div className="rounded-lg border border-danger-200 bg-danger-50 p-3 text-body-sm text-danger-700">
+              <p className="font-medium">Cannot delete</p>
+              <p className="mt-1">{deleteError}</p>
+              {confirmingDelete && (
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => { setDeleteError(null); setConfirmingDelete(false); deleteMutation.mutate(true); }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    Delete anyway
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => { setDeleteError(null); setConfirmingDelete(false); }}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-2 flex items-center justify-between">
             <div className="flex gap-3">
               <Button type="submit" disabled={saveMutation.isPending}>
@@ -132,11 +165,11 @@ export function AccountForm({ account }: { account?: Account }) {
                 Cancel
               </Button>
             </div>
-            {isEditing && (
+            {isEditing && !confirmingDelete && (
               <Button
                 type="button"
                 variant="destructive"
-                onClick={() => deleteMutation.mutate()}
+                onClick={() => { setDeleteError(null); deleteMutation.mutate(false); }}
                 disabled={deleteMutation.isPending}
               >
                 Delete

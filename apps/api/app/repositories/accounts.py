@@ -2,10 +2,11 @@ import uuid
 from datetime import date as date_type
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account, AccountTransfer
+from app.models.enums import ChequeStatus
 from app.models.expense import ExpenseEntry
 from app.models.party import Customer, Supplier
 from app.models.payment import Payment
@@ -36,29 +37,60 @@ async def update(db: AsyncSession, account: Account, payload: AccountUpdate) -> 
     return account
 
 
+async def has_linked_records(db: AsyncSession, tenant_id: uuid.UUID, account_id: uuid.UUID) -> bool:
+    """Returns True if payments, expenses, or transfers reference this account."""
+    p = (await db.execute(
+        select(func.count()).select_from(Payment).where(
+            Payment.tenant_id == tenant_id, Payment.account_id == account_id
+        )
+    )).scalar_one()
+    if p > 0:
+        return True
+    e = (await db.execute(
+        select(func.count()).select_from(ExpenseEntry).where(
+            ExpenseEntry.tenant_id == tenant_id, ExpenseEntry.account_id == account_id
+        )
+    )).scalar_one()
+    if e > 0:
+        return True
+    t = (await db.execute(
+        select(func.count()).select_from(AccountTransfer).where(
+            AccountTransfer.tenant_id == tenant_id,
+            or_(AccountTransfer.from_account_id == account_id, AccountTransfer.to_account_id == account_id),
+        )
+    )).scalar_one()
+    return t > 0
+
+
 async def delete(db: AsyncSession, account: Account) -> None:
     await db.delete(account)
     await db.flush()
+
+
+def _active_payment_filter(account_id: uuid.UUID, tenant_id: uuid.UUID):
+    """Filters for non-voided, non-bounced payments on this account."""
+    return [
+        Payment.tenant_id == tenant_id,
+        Payment.account_id == account_id,
+        Payment.voided_at.is_(None),
+        or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
+    ]
 
 
 async def get_balance(db: AsyncSession, tenant_id: uuid.UUID, account: Account) -> Decimal:
     received = (
         await db.execute(
             select(func.coalesce(func.sum(Payment.amount), 0)).where(
-                Payment.tenant_id == tenant_id,
-                Payment.account_id == account.id,
+                *_active_payment_filter(account.id, tenant_id),
                 Payment.customer_id.is_not(None),
-                Payment.voided_at.is_(None),
             )
         )
     ).scalar_one()
     paid = (
         await db.execute(
             select(func.coalesce(func.sum(Payment.amount), 0)).where(
-                Payment.tenant_id == tenant_id,
-                Payment.account_id == account.id,
+                *_active_payment_filter(account.id, tenant_id),
                 Payment.supplier_id.is_not(None),
-                Payment.voided_at.is_(None),
             )
         )
     ).scalar_one()
@@ -140,11 +172,7 @@ async def get_statement(
     supplier_name_by_id = {s.id: s.name for s in suppliers_result.scalars().all()}
 
     payments_result = await db.execute(
-        select(Payment).where(
-            Payment.tenant_id == tenant_id,
-            Payment.account_id == account.id,
-            Payment.voided_at.is_(None),
-        )
+        select(Payment).where(*_active_payment_filter(account.id, tenant_id))
     )
     expenses_result = await db.execute(
         select(ExpenseEntry).where(

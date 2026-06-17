@@ -170,13 +170,18 @@ export function PaymentForm() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="account">Account</Label>
               <Select id="account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-                <option value="">No account</option>
+                <option value="">— Select account —</option>
                 {accounts?.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
               </Select>
+              {!accountId && (
+                <p className="text-caption text-warning-600">
+                  No account selected — this payment won&apos;t appear in any account balance.
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="payment_date">Payment date</Label>

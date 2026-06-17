@@ -2,6 +2,7 @@
 
 from app.db.base import Base
 from app.models.account import Account, AccountTransfer
+from app.models.notification import Notification
 from app.models.activity import ActivityLog
 from app.models.attachment import Attachment
 from app.models.auth import RefreshToken
@@ -24,6 +25,7 @@ __all__ = [
     "Base",
     "Account",
     "AccountTransfer",
+    "Notification",
     "Tenant",
     "User",
     "Customer",

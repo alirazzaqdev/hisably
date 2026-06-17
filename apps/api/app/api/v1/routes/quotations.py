@@ -62,7 +62,11 @@ async def list_quotations(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> Page[InvoiceOut]:
-    await _notify_expired_quotations(db, tenant)
+    # Expiry check is now handled by the daily cron job (POST /internal/daily-jobs).
+    # We keep a lightweight on-demand flip so the status column stays current
+    # even if the cron hasn't run yet today.
+    await invoices_repo.flip_expired_quotations(db, tenant.id)
+    await db.commit()
     items, total = await invoices_repo.list_quotations(
         db, tenant.id, status=status_filter, search=search, page=page, page_size=page_size
     )
@@ -74,7 +78,8 @@ async def get_quotation_counts(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> QuotationCounts:
-    await _notify_expired_quotations(db, tenant)
+    await invoices_repo.flip_expired_quotations(db, tenant.id)
+    await db.commit()
     counts = await invoices_repo.count_quotations_by_status(db, tenant.id)
     return QuotationCounts(
         draft=counts[QuotationStatus.DRAFT.value],

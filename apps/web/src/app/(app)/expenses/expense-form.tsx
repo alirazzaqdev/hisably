@@ -211,13 +211,18 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
                 value={form.account_id ?? ""}
                 onChange={(e) => update("account_id", e.target.value || null)}
               >
-                <option value="">No account</option>
+                <option value="">— Select account —</option>
                 {accounts?.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
               </Select>
+              {!form.account_id && (
+                <p className="text-caption text-warning-600">
+                  No account selected — this expense won&apos;t appear in any account balance.
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="supplier">Supplier (optional)</Label>

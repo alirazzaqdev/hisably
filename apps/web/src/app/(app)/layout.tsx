@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { FirmSwitcher } from "@/components/firm-switcher";
 import { Logo } from "@/components/logo";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { NotificationBell } from "@/components/notification-bell";
 import { SyncStatusBanner } from "@/components/sync-status-banner";
 import { authApi } from "@/lib/api/auth";
 import { useEnabledFields } from "@/lib/hooks/use-enabled-fields";
@@ -158,11 +159,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-border px-3 py-4">
-          <div className="mb-2 px-3">
-            <p className="truncate text-body-sm font-medium text-foreground">
-              {tenant?.business_name ?? "..."}
-            </p>
-            <p className="truncate text-body-sm text-muted-foreground">{user?.email ?? ""}</p>
+          <div className="mb-2 flex items-center justify-between px-3">
+            <div className="min-w-0">
+              <p className="truncate text-body-sm font-medium text-foreground">
+                {tenant?.business_name ?? "..."}
+              </p>
+              <p className="truncate text-body-sm text-muted-foreground">{user?.email ?? ""}</p>
+            </div>
+            <NotificationBell />
           </div>
           <button
             onClick={handleLogout}
@@ -177,6 +181,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile top bar */}
       <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden print:hidden">
         <Logo size="sm" />
+        <div className="flex items-center gap-1">
+          <NotificationBell />
         <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
           <button
             type="button"
@@ -239,6 +245,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </SheetContent>
         </Sheet>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col">

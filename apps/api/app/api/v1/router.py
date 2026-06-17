@@ -9,10 +9,12 @@ from app.api.v1.routes import (
     dashboard,
     expenses,
     firms,
+    internal,
     invoices,
     item_categories,
     items,
     job_register,
+    notifications,
     onboarding,
     payments,
     price_lists,
@@ -51,3 +53,5 @@ api_router.include_router(recurring_invoices.router)
 api_router.include_router(job_register.router)
 api_router.include_router(public.router)
 api_router.include_router(backup.router)
+api_router.include_router(notifications.router)
+api_router.include_router(internal.router)

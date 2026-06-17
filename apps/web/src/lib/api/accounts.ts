@@ -65,7 +65,8 @@ export const accountsApi = {
     apiRequest<Account>("/accounts", { method: "POST", body: JSON.stringify(payload) }),
   update: (id: string, payload: Partial<AccountInput>) =>
     apiRequest<Account>(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-  remove: (id: string) => apiRequest<void>(`/accounts/${id}`, { method: "DELETE" }),
+  remove: (id: string, force = false) =>
+    apiRequest<void>(`/accounts/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
   listTransfers: (accountId?: string) => {
     const qs = accountId ? `?account_id=${accountId}` : "";
     return apiRequest<AccountTransfer[]>(`/accounts/transfers${qs}`);

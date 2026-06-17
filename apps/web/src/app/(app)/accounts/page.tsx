@@ -171,6 +171,17 @@ export default function AccountsPage() {
                   </tr>
                 ))}
               </tbody>
+              {data.length > 1 && (
+                <tfoot className="border-t border-border bg-muted">
+                  <tr>
+                    <td className="px-4 py-3 font-semibold text-foreground" colSpan={3}>Total</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">
+                      {data.reduce((sum, a) => sum + Number(a.current_balance), 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3" />
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 

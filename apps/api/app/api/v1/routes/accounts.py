@@ -185,11 +185,17 @@ async def get_account_statement_csv(
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(
     account_id: uuid.UUID,
+    force: bool = False,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     account = await accounts_repo.get_by_id(db, tenant.id, account_id)
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    if not force and await accounts_repo.has_linked_records(db, tenant.id, account_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This account has linked payments, expenses, or transfers. Pass ?force=true to delete anyway.",
+        )
     await accounts_repo.delete(db, account)
     await db.commit()
