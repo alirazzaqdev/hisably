@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     resend_api_key: str | None = None
     email_from: str = "Hisably <hi@hisably.com>"
 
-    # Internal cron endpoint secret — set CRON_SECRET in Vercel env
-    cron_secret: str | None = None
+    # Internal cron endpoint secret — set DAILY_JOB_SECRET in Vercel env
+    daily_job_secret: str | None = None
 
     @property
     def sqlalchemy_database_url(self) -> str:

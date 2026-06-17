@@ -1,7 +1,7 @@
 """Internal endpoint called by the daily cron job.
 
-Protected by X-Cron-Secret header. Set CRON_SECRET in Vercel env to a random
-string and use the same value in the Vercel Cron job configuration.
+Protected by X-Cron-Secret header. Set DAILY_JOB_SECRET in Vercel env to a
+random string and pass it as the X-Cron-Secret header when calling manually.
 """
 import logging
 from datetime import datetime, timezone
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/internal", tags=["internal"])
 
 def _verify_secret(x_cron_secret: str | None = Header(default=None)) -> None:
     settings = get_settings()
-    if settings.cron_secret and x_cron_secret != settings.cron_secret:
+    if settings.daily_job_secret and x_cron_secret != settings.daily_job_secret:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid cron secret")
 
 
