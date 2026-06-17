@@ -494,7 +494,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
       <CardContent>
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-3">
-            {!isEditing && (
+            {!isEditing && type !== "quotation" && (
               <div className="flex flex-col gap-1.5 sm:col-span-1">
                 <Label htmlFor="doc_type">Document type</Label>
                 <Select id="doc_type" value={type} onChange={(e) => setType(e.target.value as InvoiceType)}>
@@ -648,7 +648,6 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 const isSqm = lineUnit === "sqm";
                 const isLm = lineUnit === "lm";
                 const isKg = lineUnit === "kg";
-                const isHour = lineUnit === "hour";
                 const showSizeRow = type !== "proforma" && (isSqm || isLm);
                 const isOverridden = Boolean(line.override_total);
                 return (
@@ -893,22 +892,24 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 <thead className="border-b border-border bg-muted text-caption text-muted-foreground">
                   {type === "proforma" ? (
                     <tr>
-                      <th className="w-36 px-3 py-2 font-medium">Item / Unit</th>
+                      <th className="w-32 px-3 py-2 font-medium">Item</th>
                       <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="w-24 px-3 py-2 font-medium">QTY</th>
-                      <th className="w-24 px-3 py-2 font-medium">Final Payment</th>
-                      <th className="w-28 px-3 py-2 font-medium">Rate</th>
-                      <th className="w-28 px-3 py-2 text-right font-medium">Total</th>
+                      <th className="w-20 px-3 py-2 font-medium">Unit</th>
+                      <th className="w-20 px-3 py-2 font-medium">QTY</th>
+                      <th className="w-20 px-3 py-2 font-medium">Final %</th>
+                      <th className="w-24 px-3 py-2 font-medium">Rate</th>
+                      <th className="w-24 px-3 py-2 text-right font-medium">Total</th>
                       <th className="w-10 px-2 py-2" />
                     </tr>
                   ) : (
                     <tr>
-                      <th className="w-36 px-3 py-2 font-medium">Item / Unit</th>
+                      <th className="w-32 px-3 py-2 font-medium">Item</th>
                       <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="w-24 px-3 py-2 font-medium">Qty</th>
-                      <th className="w-28 px-3 py-2 font-medium">Unit price</th>
-                      <th className="w-44 px-3 py-2 font-medium">VAT</th>
-                      <th className="w-24 px-3 py-2 text-right font-medium">Total</th>
+                      <th className="w-20 px-3 py-2 font-medium">Unit</th>
+                      <th className="w-20 px-3 py-2 font-medium">Qty</th>
+                      <th className="w-24 px-3 py-2 font-medium">Unit price</th>
+                      <th className="w-36 px-3 py-2 font-medium">VAT</th>
+                      <th className="w-20 px-3 py-2 text-right font-medium">Total</th>
                       <th className="w-10 px-2 py-2" />
                     </tr>
                   )}
@@ -920,7 +921,6 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                     const isSqm = lineUnit === "sqm";
                     const isLm = lineUnit === "lm";
                     const isKg = lineUnit === "kg";
-                    const isHour = lineUnit === "hour";
                     const showSizeRow = type !== "proforma" && (isSqm || isLm);
                     const isOverridden = Boolean(line.override_total);
                     if (type === "proforma") {
@@ -931,11 +931,6 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                               <option value="">Custom</option>
                               {items?.items.map((i) => (
                                 <option key={i.id} value={i.id}>{i.name}</option>
-                              ))}
-                            </Select>
-                            <Select className="mt-1" value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
-                              {LINE_UNIT_OPTIONS.map((u) => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
                               ))}
                             </Select>
                           </td>
@@ -956,6 +951,13 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                                 onChange={(e) => updateLine(index, { description_ar: e.target.value || null })}
                               />
                             )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Select value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
+                              {LINE_UNIT_OPTIONS.map((u) => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                              ))}
+                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Input
@@ -1023,11 +1025,6 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                                 <option key={i.id} value={i.id}>{i.name}</option>
                               ))}
                             </Select>
-                            <Select className="mt-1" value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
-                              {LINE_UNIT_OPTIONS.map((u) => (
-                                <option key={u.value} value={u.value}>{u.label}</option>
-                              ))}
-                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Textarea
@@ -1048,25 +1045,25 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                             )}
                           </td>
                           <td className="px-3 py-2">
+                            <Select value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
+                              {LINE_UNIT_OPTIONS.map((u) => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                              ))}
+                            </Select>
+                          </td>
+                          <td className="px-3 py-2">
                             {showSizeRow ? (
                               <span className="tabular-nums text-muted-foreground" title={isSqm ? "Total SQM" : "Total LM"}>
                                 {computed.quantity.toFixed(4)}
                               </span>
                             ) : (
-                              <div className="flex flex-col gap-0.5">
-                                {(isKg || isHour) && (
-                                  <span className="text-caption text-muted-foreground">
-                                    {isKg ? "kg" : "hr"}
-                                  </span>
-                                )}
-                                <Input
-                                  type="number"
-                                  step={isKg ? "0.001" : "0.01"}
-                                  min="0"
-                                  value={line.quantity ?? "1"}
-                                  onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                                />
-                              </div>
+                              <Input
+                                type="number"
+                                step={isKg ? "0.001" : "0.01"}
+                                min="0"
+                                value={line.quantity ?? "1"}
+                                onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                              />
                             )}
                           </td>
                           <td className="px-3 py-2">
@@ -1111,7 +1108,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                         </tr>
                         {showSizeRow && (
                           <tr className="border-b border-border last:border-0">
-                            <td colSpan={7} className="px-3 pb-2">
+                            <td colSpan={8} className="px-3 pb-2">
                               <div className="flex flex-wrap items-end gap-3">
                                 {isSqm ? (
                                   <>

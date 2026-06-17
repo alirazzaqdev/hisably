@@ -103,6 +103,7 @@ export function BrandingSection() {
                 <Label htmlFor={`branding_${field}`}>{label}</Label>
                 <p className="text-body-sm text-muted-foreground">{description}</p>
                 {url && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={url}
                     alt={label}
