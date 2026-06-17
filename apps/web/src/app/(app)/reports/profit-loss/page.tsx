@@ -17,7 +17,7 @@ function todayIso(): string {
 }
 
 function yearStartIso(): string {
-  return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+  return `${new Date().getFullYear()}-01-01`;
 }
 
 export default function ProfitLossPage() {

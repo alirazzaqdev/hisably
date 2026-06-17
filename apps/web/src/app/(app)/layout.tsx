@@ -20,10 +20,6 @@ import {
   LogOut,
   ClipboardList,
   Menu,
-  BookOpen,
-  Package2,
-  TrendingUp,
-  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FirmSwitcher } from "@/components/firm-switcher";
@@ -72,10 +68,10 @@ const NAV_ITEMS = [
 ] as const;
 
 const REPORT_SUB_ITEMS = [
-  { href: "/reports/day-book", label: "Day book", icon: BookOpen },
-  { href: "/reports/stock-summary", label: "Stock summary", icon: Package2 },
-  { href: "/reports/profit-loss", label: "Profit & Loss", icon: TrendingUp },
-  { href: "/reports/balance-sheet", label: "Balance sheet", icon: Scale },
+  { href: "/reports/day-book", label: "Day book" },
+  { href: "/reports/stock-summary", label: "Stock summary" },
+  { href: "/reports/profit-loss", label: "Profit & Loss" },
+  { href: "/reports/balance-sheet", label: "Balance sheet" },
 ] as const;
 
 // Primary destinations surfaced one-tap in the mobile bottom tab bar.
@@ -140,25 +136,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div key={item.href}>
               <NavLink item={item} isActive={pathname === item.href || (item.href === "/reports" ? pathname === "/reports" : pathname.startsWith(item.href))} />
               {item.href === "/reports" && pathname.startsWith("/reports") && (
-                <div className="ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
-                  {REPORT_SUB_ITEMS.map((sub) => {
-                    const SubIcon = sub.icon;
-                    return (
-                      <Link
-                        key={sub.href}
-                        href={sub.href}
-                        className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-1.5 text-body-sm transition-colors",
-                          pathname.startsWith(sub.href)
-                            ? "font-medium text-accent-700"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <SubIcon className="h-3.5 w-3.5" />
-                        {sub.label}
-                      </Link>
-                    );
-                  })}
+                <div className="ml-7 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
+                  {REPORT_SUB_ITEMS.map((sub) => (
+                    <Link
+                      key={sub.href}
+                      href={sub.href}
+                      className={cn(
+                        "rounded-md px-2 py-1.5 text-body-sm transition-colors",
+                        pathname.startsWith(sub.href)
+                          ? "font-medium text-accent-700"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {sub.label}
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>
@@ -208,26 +200,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <NavLink item={item} isActive={pathname === item.href || (item.href === "/reports" ? pathname === "/reports" : pathname.startsWith(item.href))} />
                   </SheetClose>
                   {item.href === "/reports" && pathname.startsWith("/reports") && (
-                    <div className="ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
-                      {REPORT_SUB_ITEMS.map((sub) => {
-                        const SubIcon = sub.icon;
-                        return (
-                          <SheetClose key={sub.href} asChild>
-                            <Link
-                              href={sub.href}
-                              className={cn(
-                                "flex items-center gap-2 rounded-md px-2 py-1.5 text-body-sm transition-colors",
-                                pathname.startsWith(sub.href)
-                                  ? "font-medium text-accent-700"
-                                  : "text-muted-foreground hover:text-foreground"
-                              )}
-                            >
-                              <SubIcon className="h-3.5 w-3.5" />
-                              {sub.label}
-                            </Link>
-                          </SheetClose>
-                        );
-                      })}
+                    <div className="ml-7 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
+                      {REPORT_SUB_ITEMS.map((sub) => (
+                        <SheetClose key={sub.href} asChild>
+                          <Link
+                            href={sub.href}
+                            className={cn(
+                              "rounded-md px-2 py-1.5 text-body-sm transition-colors",
+                              pathname.startsWith(sub.href)
+                                ? "font-medium text-accent-700"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {sub.label}
+                          </Link>
+                        </SheetClose>
+                      ))}
                     </div>
                   )}
                 </div>

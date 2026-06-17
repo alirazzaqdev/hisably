@@ -19,7 +19,6 @@ import {
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { reportsApi } from "@/lib/api/reports";
 import { tenantsApi } from "@/lib/api/tenants";
 
@@ -53,7 +52,7 @@ function fmt(value: number | string | undefined, currency: string): string {
 }
 
 function yearStart(): string {
-  return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+  return `${new Date().getFullYear()}-01-01`;
 }
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -201,22 +200,14 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      {/* Date range selector — controls P&L, VAT, and expense charts */}
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-4 pt-5">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="rpt_from" className="text-caption text-muted-foreground">Period from</Label>
-            <Input id="rpt_from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="rpt_to" className="text-caption text-muted-foreground">Period to</Label>
-            <Input id="rpt_to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" />
-          </div>
-          <p className="text-caption text-muted-foreground">
-            Applies to: Profit &amp; Loss, VAT position, Expense breakdown
-          </p>
-        </CardContent>
-      </Card>
+      {/* Date range selector */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+        <span className="text-body-sm font-medium text-foreground">Period</span>
+        <Input id="rpt_from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-36 text-body-sm" />
+        <span className="text-body-sm text-muted-foreground">to</span>
+        <Input id="rpt_to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-36 text-body-sm" />
+        <span className="text-caption text-muted-foreground">· Applies to P&amp;L, VAT, Expenses</span>
+      </div>
 
       {/* Charts row 1: Sales Trend + Receivables Aging */}
       <div className="grid gap-6 lg:grid-cols-2">
