@@ -2,15 +2,15 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import InvoiceStatus, InvoiceType
+from app.models.enums import ChequeStatus, InvoiceStatus, InvoiceType
 from app.models.expense import ExpenseEntry
 from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.item import Item
 from app.models.party import Customer, Supplier
-from app.models.payment import Payment
+from app.models.payment import Payment, PaymentAllocation
 from app.repositories.payments import get_paid_amount
 from app.schemas.reports import DayBookEntry, ExpenseCategoryTotal, StockSummaryItem
 
@@ -42,12 +42,25 @@ async def count_invoices(db: AsyncSession, tenant_id: uuid.UUID) -> int:
 
 
 async def revenue_paid(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
-    result = await db.execute(
+    # Fix 1: Sales = TAX_INVOICE paid; Returns = CREDIT_NOTE paid; Result = sales - returns
+    # PURCHASE_BILL and DEBIT_NOTE must NOT count
+    sales_result = await db.execute(
         select(func.coalesce(func.sum(Invoice.grand_total * Invoice.exchange_rate), 0)).where(
-            Invoice.tenant_id == tenant_id, Invoice.status == InvoiceStatus.PAID
+            Invoice.tenant_id == tenant_id,
+            Invoice.type == InvoiceType.TAX_INVOICE,
+            Invoice.status == InvoiceStatus.PAID,
         )
     )
-    return _q2(result.scalar_one())
+    returns_result = await db.execute(
+        select(func.coalesce(func.sum(Invoice.grand_total * Invoice.exchange_rate), 0)).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.type == InvoiceType.CREDIT_NOTE,
+            Invoice.status == InvoiceStatus.PAID,
+        )
+    )
+    sales = sales_result.scalar_one()
+    returns = returns_result.scalar_one()
+    return _q2(sales - returns)
 
 
 async def outstanding_receivables(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
@@ -89,21 +102,58 @@ async def count_overdue_invoices(db: AsyncSession, tenant_id: uuid.UUID, today: 
 
 
 async def sales_trend(db: AsyncSession, tenant_id: uuid.UUID, months: int = 6) -> list[tuple[str, Decimal, Decimal]]:
-    query = select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.status != InvoiceStatus.DRAFT)
-    invoices = list((await db.execute(query)).scalars().all())
+    # Fix 2: "Invoiced" = NET of TAX_INVOICE - CREDIT_NOTE by issue_date (non-draft, non-void, customer only)
+    invoice_query = (
+        select(Invoice)
+        .where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.customer_id.is_not(None),
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.status != InvoiceStatus.VOID,
+            Invoice.type.in_([InvoiceType.TAX_INVOICE, InvoiceType.CREDIT_NOTE]),
+        )
+    )
+    invoices = list((await db.execute(invoice_query)).scalars().all())
 
-    totals: dict[str, list[Decimal]] = {}
+    invoiced_totals: dict[str, Decimal] = {}
     for invoice in invoices:
         period = invoice.issue_date.strftime("%Y-%m")
-        bucket = totals.setdefault(period, [Decimal("0"), Decimal("0")])
         base_total = invoice.grand_total * invoice.exchange_rate
-        if invoice.status != InvoiceStatus.VOID:
-            bucket[0] += base_total
-        if invoice.status == InvoiceStatus.PAID:
-            bucket[1] += base_total
+        current = invoiced_totals.get(period, Decimal("0"))
+        if invoice.type == InvoiceType.CREDIT_NOTE:
+            invoiced_totals[period] = current - base_total
+        else:
+            invoiced_totals[period] = current + base_total
 
-    periods = sorted(totals.keys(), reverse=True)[:months]
-    return [(p, _q2(totals[p][0]), _q2(totals[p][1])) for p in reversed(periods)]
+    # Fix 2: "Collected" = SUM(payment_allocation.amount_allocated * invoice.exchange_rate)
+    # grouped by payment.payment_date month, customer payments only, excluding voided/bounced
+    collected_query = (
+        select(
+            func.to_char(Payment.payment_date, "YYYY-MM").label("period"),
+            func.coalesce(
+                func.sum(PaymentAllocation.amount_allocated * Invoice.exchange_rate), 0
+            ).label("collected"),
+        )
+        .join(PaymentAllocation, PaymentAllocation.payment_id == Payment.id)
+        .join(Invoice, Invoice.id == PaymentAllocation.invoice_id)
+        .where(
+            Payment.tenant_id == tenant_id,
+            Payment.customer_id.is_not(None),
+            Payment.voided_at.is_(None),
+            or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
+        )
+        .group_by(func.to_char(Payment.payment_date, "YYYY-MM"))
+    )
+    collected_rows = (await db.execute(collected_query)).all()
+    collected_totals: dict[str, Decimal] = {row.period: Decimal(str(row.collected)) for row in collected_rows}
+
+    all_periods = set(invoiced_totals.keys()) | set(collected_totals.keys())
+    periods = sorted(all_periods, reverse=True)[:months]
+
+    return [
+        (p, _q2(invoiced_totals.get(p, Decimal("0"))), _q2(collected_totals.get(p, Decimal("0"))))
+        for p in reversed(periods)
+    ]
 
 
 async def top_customers(db: AsyncSession, tenant_id: uuid.UUID, limit: int = 5) -> list[tuple[uuid.UUID, str, Decimal, Decimal]]:
@@ -237,26 +287,52 @@ async def day_book(
             )
         )
 
+    # Fix 4: Use allocation-based exchange_rate conversion; exclude voided/bounced payments
     payment_query = (
-        select(Payment, Customer.name, Supplier.name)
+        select(
+            Payment.id,
+            Payment.payment_date,
+            Payment.customer_id,
+            Payment.supplier_id,
+            Payment.reference_no,
+            Customer.name.label("customer_name"),
+            Supplier.name.label("supplier_name"),
+            func.coalesce(
+                func.sum(PaymentAllocation.amount_allocated * Invoice.exchange_rate),
+                Payment.amount,
+            ).label("base_amount"),
+        )
         .outerjoin(Customer, Payment.customer_id == Customer.id)
         .outerjoin(Supplier, Payment.supplier_id == Supplier.id)
+        .outerjoin(PaymentAllocation, PaymentAllocation.payment_id == Payment.id)
+        .outerjoin(Invoice, Invoice.id == PaymentAllocation.invoice_id)
         .where(
             Payment.tenant_id == tenant_id,
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to,
+            Payment.voided_at.is_(None),
+            or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
+        )
+        .group_by(
+            Payment.id,
+            Payment.payment_date,
+            Payment.customer_id,
+            Payment.supplier_id,
+            Payment.reference_no,
+            Customer.name,
+            Supplier.name,
         )
     )
-    for payment, customer_name, supplier_name in (await db.execute(payment_query)).all():
+    for row in (await db.execute(payment_query)).all():
         entries.append(
             DayBookEntry(
-                id=payment.id,
-                entry_date=payment.payment_date,
+                id=row.id,
+                entry_date=row.payment_date,
                 type="payment",
-                reference=payment.reference_no or "Payment",
-                party_name=customer_name or supplier_name,
-                amount=payment.amount,
-                direction="in" if payment.customer_id is not None else "out",
+                reference=row.reference_no or "Payment",
+                party_name=row.customer_name or row.supplier_name,
+                amount=_q2(row.base_amount),
+                direction="in" if row.customer_id is not None else "out",
             )
         )
 
@@ -304,20 +380,37 @@ async def outstanding_payables(db: AsyncSession, tenant_id: uuid.UUID) -> Decima
 
 
 async def cash_and_bank_balance(db: AsyncSession, tenant_id: uuid.UUID) -> Decimal:
-    received_query = select(func.coalesce(func.sum(Payment.amount), 0)).where(
-        Payment.tenant_id == tenant_id, Payment.customer_id.is_not(None)
+    # Fix 5: Use allocation-based amounts (amount_allocated * exchange_rate) for proper base-currency conversion
+    # Exclude voided payments and bounced cheques
+    received_query = (
+        select(func.coalesce(func.sum(PaymentAllocation.amount_allocated * Invoice.exchange_rate), 0))
+        .join(Payment, Payment.id == PaymentAllocation.payment_id)
+        .join(Invoice, Invoice.id == PaymentAllocation.invoice_id)
+        .where(
+            Payment.tenant_id == tenant_id,
+            Payment.customer_id.is_not(None),
+            Payment.voided_at.is_(None),
+            or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
+        )
     )
-    paid_to_suppliers_query = select(func.coalesce(func.sum(Payment.amount), 0)).where(
-        Payment.tenant_id == tenant_id, Payment.supplier_id.is_not(None)
+    paid_to_suppliers_query = (
+        select(func.coalesce(func.sum(PaymentAllocation.amount_allocated * Invoice.exchange_rate), 0))
+        .join(Payment, Payment.id == PaymentAllocation.payment_id)
+        .join(Invoice, Invoice.id == PaymentAllocation.invoice_id)
+        .where(
+            Payment.tenant_id == tenant_id,
+            Payment.supplier_id.is_not(None),
+            Payment.voided_at.is_(None),
+            or_(Payment.cheque_status.is_(None), Payment.cheque_status != ChequeStatus.BOUNCED),
+        )
     )
     expenses_query = select(func.coalesce(func.sum(ExpenseEntry.amount), 0)).where(
         ExpenseEntry.tenant_id == tenant_id
     )
-
     received = (await db.execute(received_query)).scalar_one()
     paid_to_suppliers = (await db.execute(paid_to_suppliers_query)).scalar_one()
     expenses = (await db.execute(expenses_query)).scalar_one()
-    return received - paid_to_suppliers - expenses
+    return _q2(received - paid_to_suppliers - expenses)
 
 
 async def profit_loss(
@@ -330,7 +423,8 @@ async def profit_loss(
             query = query.where(Invoice.issue_date <= date_to)
         return query
 
-    base_subtotal = Invoice.subtotal * Invoice.exchange_rate
+    # Fix 3: Use (subtotal - discount_total) instead of subtotal to account for document-level discount
+    base_subtotal = (Invoice.subtotal - Invoice.discount_total) * Invoice.exchange_rate
     revenue_query = apply_date_filter(
         select(func.coalesce(func.sum(base_subtotal), 0)).where(
             Invoice.tenant_id == tenant_id, Invoice.type == InvoiceType.TAX_INVOICE, Invoice.status != InvoiceStatus.DRAFT, Invoice.status != InvoiceStatus.VOID

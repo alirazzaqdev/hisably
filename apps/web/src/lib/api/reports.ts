@@ -97,6 +97,7 @@ export interface BalanceSheetResponse {
   accounts_payable: string;
   total_liabilities: string;
   equity: string;
+  liabilities_and_equity: string;
 }
 
 export const reportsApi = {

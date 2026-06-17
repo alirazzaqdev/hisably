@@ -13,6 +13,8 @@ class DashboardKpis(BaseModel):
     outstanding_receivables: Decimal
     expenses_this_month: Decimal
     invoices_overdue: int
+    date_from: date | None = None
+    date_to: date | None = None
 
 
 class SalesTrendPoint(BaseModel):
@@ -102,3 +104,4 @@ class BalanceSheetResponse(BaseModel):
     accounts_payable: Decimal
     total_liabilities: Decimal
     equity: Decimal
+    liabilities_and_equity: Decimal

@@ -16,13 +16,12 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function monthStartIso(): string {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+function yearStartIso(): string {
+  return new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
 }
 
 export default function ProfitLossPage() {
-  const [dateFrom, setDateFrom] = useState(monthStartIso());
+  const [dateFrom, setDateFrom] = useState(yearStartIso());
   const [dateTo, setDateTo] = useState(todayIso());
 
   const { data: tenant } = useQuery({ queryKey: ["tenant", "me"], queryFn: tenantsApi.me });

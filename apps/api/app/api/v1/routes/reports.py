@@ -92,6 +92,8 @@ async def get_balance_sheet(
     total_liabilities = accounts_payable
     equity = total_assets - total_liabilities
 
+    liabilities_and_equity = total_liabilities + equity
+
     return BalanceSheetResponse(
         cash_and_bank=cash_and_bank,
         accounts_receivable=accounts_receivable,
@@ -100,4 +102,5 @@ async def get_balance_sheet(
         accounts_payable=accounts_payable,
         total_liabilities=total_liabilities,
         equity=equity,
+        liabilities_and_equity=liabilities_and_equity,
     )

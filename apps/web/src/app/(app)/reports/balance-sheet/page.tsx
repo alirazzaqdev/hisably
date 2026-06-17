@@ -31,7 +31,7 @@ export default function BalanceSheetPage() {
       ["Accounts payable", bs.accounts_payable],
       ["Total liabilities", bs.total_liabilities],
       ["Equity", bs.equity],
-      ["Total liabilities & equity", bs.total_assets],
+      ["Total liabilities & equity", bs.liabilities_and_equity ?? (Number(bs.total_liabilities) + Number(bs.equity))],
     ]);
   }
 
@@ -120,7 +120,7 @@ export default function BalanceSheetPage() {
                 <div className="flex items-center justify-between border-t border-border pt-2 font-semibold text-foreground">
                   <span>Total liabilities &amp; equity</span>
                   <span className="tabular-nums">
-                    {currency} {bs.total_assets}
+                    {currency} {bs.liabilities_and_equity ?? (Number(bs.total_liabilities) + Number(bs.equity))}
                   </span>
                 </div>
               </div>
