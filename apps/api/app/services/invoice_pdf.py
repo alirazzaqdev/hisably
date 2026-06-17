@@ -141,6 +141,12 @@ LABELS: dict[str, dict[str, str]] = {
         "tr": "Şartlar ve koşullar", "pl": "Warunki", "sv": "Villkor",
         "da": "Vilkår", "no": "Vilkår", "fi": "Ehdot",
     },
+    "job_photos": {
+        "en": "Before / After Photos", "ar": "صور قبل وبعد", "ur": "پہلے / بعد کی تصاویر",
+        "de": "Vorher / Nachher Fotos", "fr": "Photos Avant / Après", "es": "Fotos Antes / Después",
+        "it": "Foto Prima / Dopo", "pt": "Fotos Antes / Depois", "nl": "Voor / Na Foto's",
+        "tr": "Önce / Sonra Fotoğraflar",
+    },
     "site_image": {
         "en": "Site image", "ar": "صورة الموقع",
         "de": "Standortbild", "fr": "Image du site", "es": "Imagen del sitio",
@@ -766,39 +772,55 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
         elements.append(Paragraph(_label("terms", language, language_secondary), heading_style))
         elements.append(Paragraph(_rtl(invoice.terms).replace("\n", "<br/>"), normal))
 
-    if is_proforma:
-        before_image = _load_site_image(invoice.site_image_url)
-        after_image = _load_site_image(invoice.site_image_after_url)
-        if before_image is not None or after_image is not None:
-            site_section: list = [
-                Spacer(1, 6 * mm),
-                Paragraph(_label("site_image", language, language_secondary), heading_style),
-            ]
-            before_cell = [Paragraph(_label("site_image_before", language, language_secondary), site_label_style), Spacer(1, 2 * mm), before_image] if before_image else []
-            after_cell = [Paragraph(_label("site_image_after", language, language_secondary), site_label_style), Spacer(1, 2 * mm), after_image] if after_image else []
-            if before_cell and after_cell:
-                images_row = [after_cell, before_cell] if is_arabic else [before_cell, after_cell]
-                images_table = Table([images_row], colWidths=[85 * mm, 85 * mm])
-                images_table.setStyle(
-                    TableStyle([
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                    ])
-                )
-                site_section.append(images_table)
-            elif before_cell:
-                site_section.extend(before_cell)
-            elif after_cell:
-                site_section.extend(after_cell)
-            elements.append(KeepTogether(site_section))
-    else:
-        site_image = _load_site_image(invoice.site_image_url)
-        if site_image is not None:
-            elements.append(Spacer(1, 6 * mm))
-            elements.append(Paragraph(_label("site_image", language, language_secondary), heading_style))
-            elements.append(site_image)
+    # Before / after photos — works on all doc types, supports up to 3 pairs
+    before_urls: list[str] = list(getattr(invoice, "before_photos", None) or [])
+    after_urls: list[str] = list(getattr(invoice, "after_photos", None) or [])
+    # Backward compat: old single-url fields
+    if not before_urls and invoice.site_image_url:
+        before_urls = [invoice.site_image_url]
+    if not after_urls and invoice.site_image_after_url:
+        after_urls = [invoice.site_image_after_url]
+
+    if before_urls or after_urls:
+        n_pairs = min(max(len(before_urls), len(after_urls)), 3)
+        photo_heading = Paragraph(_label("job_photos", language, language_secondary), heading_style)
+        first_pair_parts: list = [Spacer(1, 6 * mm), photo_heading]
+
+        for i in range(n_pairs):
+            before_img = _load_site_image(before_urls[i]) if i < len(before_urls) else None
+            after_img = _load_site_image(after_urls[i]) if i < len(after_urls) else None
+            if before_img is None and after_img is None:
+                continue
+
+            before_label = Paragraph(_label("site_image_before", language, language_secondary), site_label_style)
+            after_label = Paragraph(_label("site_image_after", language, language_secondary), site_label_style)
+
+            before_cell: list = [before_label, Spacer(1, 2 * mm)] + ([before_img] if before_img else [])
+            after_cell: list = [after_label, Spacer(1, 2 * mm)] + ([after_img] if after_img else [])
+
+            if before_img and after_img:
+                pair_row = [after_cell, before_cell] if is_arabic else [before_cell, after_cell]
+                pair_table = Table([pair_row], colWidths=[85 * mm, 85 * mm])
+            elif before_img:
+                pair_row = [[before_label, Spacer(1, 2 * mm), before_img]]
+                pair_table = Table([pair_row], colWidths=[170 * mm])
+            else:
+                pair_row = [[after_label, Spacer(1, 2 * mm), after_img]]
+                pair_table = Table([pair_row], colWidths=[170 * mm])
+
+            pair_table.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]))
+
+            if i == 0:
+                first_pair_parts.append(pair_table)
+                elements.append(KeepTogether(first_pair_parts))
+            else:
+                elements.append(Spacer(1, 4 * mm))
+                elements.append(pair_table)
 
     if is_tax_invoice:
         footer_text = _bank_details_footer(tenant, language, language_secondary)

@@ -70,6 +70,8 @@ class InvoiceCreate(BaseModel):
     ship_to_address: str | None = Field(default=None, max_length=500)
     site_image_url: str | None = None
     site_image_after_url: str | None = None
+    before_photos: list[str] = Field(default_factory=list)
+    after_photos: list[str] = Field(default_factory=list)
     line_items: list[InvoiceLineItemInput] = Field(default_factory=list, min_length=1)
     client_uuid: uuid.UUID | None = None
     converted_from_id: uuid.UUID | None = None
@@ -96,6 +98,8 @@ class InvoiceUpdate(BaseModel):
     ship_to_address: str | None = Field(default=None, max_length=500)
     site_image_url: str | None = None
     site_image_after_url: str | None = None
+    before_photos: list[str] | None = None
+    after_photos: list[str] | None = None
     line_items: list[InvoiceLineItemInput] | None = Field(default=None, min_length=1)
 
 
@@ -136,6 +140,8 @@ class InvoiceOut(BaseModel):
     ship_to_address: str | None
     site_image_url: str | None
     site_image_after_url: str | None
+    before_photos: list[str] = Field(default_factory=list)
+    after_photos: list[str] = Field(default_factory=list)
     void_reason: str | None
     converted_from_id: uuid.UUID | None
     public_token: str | None
