@@ -61,7 +61,9 @@ class InvoiceCreate(BaseModel):
     terms: str | None = Field(default=None, max_length=2000)
     pdf_template: PdfTemplate = PdfTemplate.MINIMAL
     accent_color: str | None = Field(default=None, max_length=16)
-    language: InvoiceLanguage = InvoiceLanguage.EN
+    language: str = Field(default="en", max_length=10)
+    language_secondary: str | None = Field(default=None, max_length=10)
+    vat_rate_override: Decimal | None = None
     lpo_no: str | None = Field(default=None, max_length=64)
     project_villa_no: str | None = Field(default=None, max_length=128)
     bill_to_address: str | None = Field(default=None, max_length=500)
@@ -85,7 +87,9 @@ class InvoiceUpdate(BaseModel):
     terms: str | None = Field(default=None, max_length=2000)
     pdf_template: PdfTemplate | None = None
     accent_color: str | None = Field(default=None, max_length=16)
-    language: InvoiceLanguage | None = None
+    language: str | None = Field(default=None, max_length=10)
+    language_secondary: str | None = Field(default=None, max_length=10)
+    vat_rate_override: Decimal | None = None
     lpo_no: str | None = Field(default=None, max_length=64)
     project_villa_no: str | None = Field(default=None, max_length=128)
     bill_to_address: str | None = Field(default=None, max_length=500)
@@ -123,7 +127,9 @@ class InvoiceOut(BaseModel):
     terms: str | None
     pdf_template: PdfTemplate
     accent_color: str | None
-    language: InvoiceLanguage
+    language: str
+    language_secondary: str | None
+    vat_rate_override: Decimal | None = None
     lpo_no: str | None
     project_villa_no: str | None
     bill_to_address: str | None

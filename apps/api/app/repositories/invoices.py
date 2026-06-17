@@ -121,7 +121,8 @@ async def get_line_items(db: AsyncSession, invoice_id: uuid.UUID) -> list[Invoic
 
 
 async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> Invoice:
-    line_items, summary = _build_line_items(payload.line_items, tenant.country, payload.discount_amount, tenant.vat_rate)
+    effective_vat_rate = payload.vat_rate_override if payload.vat_rate_override is not None else tenant.vat_rate
+    line_items, summary = _build_line_items(payload.line_items, tenant.country, payload.discount_amount, effective_vat_rate)
     number = await _next_invoice_number(db, tenant, payload.type)
 
     invoice = Invoice(
@@ -144,6 +145,8 @@ async def create(db: AsyncSession, tenant: Tenant, payload: InvoiceCreate) -> In
         pdf_template=payload.pdf_template,
         accent_color=payload.accent_color,
         language=payload.language,
+        language_secondary=payload.language_secondary,
+        vat_rate_override=payload.vat_rate_override,
         lpo_no=payload.lpo_no,
         project_villa_no=payload.project_villa_no,
         bill_to_address=payload.bill_to_address,
@@ -274,7 +277,9 @@ async def update(db: AsyncSession, tenant: Tenant, invoice: Invoice, payload: In
 
     if payload.line_items is not None:
         discount_amount = payload.discount_amount if payload.discount_amount is not None else invoice.discount_amount
-        line_items, summary = _build_line_items(payload.line_items, tenant.country, discount_amount, tenant.vat_rate)
+        new_vat_rate = payload.vat_rate_override if payload.vat_rate_override is not None else invoice.vat_rate_override
+        effective_vat_rate = new_vat_rate if new_vat_rate is not None else tenant.vat_rate
+        line_items, summary = _build_line_items(payload.line_items, tenant.country, discount_amount, effective_vat_rate)
 
         await db.execute(sa_delete(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id))
         await db.flush()

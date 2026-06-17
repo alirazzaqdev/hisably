@@ -9,7 +9,7 @@ export type InvoiceType = "tax_invoice" | "quotation" | "proforma" | "credit_not
 export type InvoiceStatus = "draft" | "sent" | "partially_paid" | "paid" | "overdue" | "void";
 export type QuotationStatus = "draft" | "pending" | "approved" | "rejected" | "expired";
 export type PdfTemplate = "minimal" | "classic" | "bold";
-export type InvoiceLanguage = "en" | "ar" | "bilingual";
+export type InvoiceLanguage = string;
 
 export interface InvoiceLineItem {
   id: string;
@@ -72,6 +72,8 @@ export interface Invoice {
   pdf_template: PdfTemplate;
   accent_color: string | null;
   language: InvoiceLanguage;
+  language_secondary: string | null;
+  vat_rate_override: string | null;
   lpo_no: string | null;
   project_villa_no: string | null;
   bill_to_address: string | null;
@@ -102,6 +104,8 @@ export interface InvoiceInput {
   pdf_template?: PdfTemplate;
   accent_color?: string | null;
   language?: InvoiceLanguage;
+  language_secondary?: string | null;
+  vat_rate_override?: string | null;
   lpo_no?: string | null;
   project_villa_no?: string | null;
   bill_to_address?: string | null;

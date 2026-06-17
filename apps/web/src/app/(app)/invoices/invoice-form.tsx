@@ -8,6 +8,7 @@ import {
   computeLineItem,
   toMajorUnits,
   toMinorUnits,
+  COUNTRIES,
   type Country,
   type InvoiceLineItemInput as SharedLineItemInput,
 } from "@hisably/shared";
@@ -30,7 +31,6 @@ import {
   invoicesApi,
   type Invoice,
   type InvoiceInput,
-  type InvoiceLanguage,
   type InvoiceLineItemInput,
   type InvoiceType,
   type PdfTemplate,
@@ -75,17 +75,65 @@ const PDF_TEMPLATES: { value: PdfTemplate; label: string }[] = [
   { value: "bold", label: "Bold" },
 ];
 
-const INVOICE_LANGUAGES: { value: InvoiceLanguage; label: string }[] = [
+const DOCUMENT_LANGUAGES: { value: string; label: string }[] = [
   { value: "en", label: "English" },
-  { value: "ar", label: "Arabic" },
-  { value: "bilingual", label: "Bilingual (EN/AR)" },
+  { value: "ar", label: "Arabic (عربي)" },
+  { value: "ur", label: "Urdu (اردو)" },
+  { value: "de", label: "German (Deutsch)" },
+  { value: "fr", label: "French (Français)" },
+  { value: "es", label: "Spanish (Español)" },
+  { value: "it", label: "Italian (Italiano)" },
+  { value: "pt", label: "Portuguese (Português)" },
+  { value: "nl", label: "Dutch (Nederlands)" },
+  { value: "tr", label: "Turkish (Türkçe)" },
+  { value: "pl", label: "Polish (Polski)" },
+  { value: "sv", label: "Swedish (Svenska)" },
+  { value: "da", label: "Danish (Dansk)" },
+  { value: "no", label: "Norwegian (Norsk)" },
+  { value: "fi", label: "Finnish (Suomi)" },
+  { value: "el", label: "Greek (Ελληνικά)" },
+  { value: "he", label: "Hebrew (עברית)" },
+  { value: "zh", label: "Chinese (中文)" },
+  { value: "ja", label: "Japanese (日本語)" },
+  { value: "ko", label: "Korean (한국어)" },
+  { value: "id", label: "Indonesian (Bahasa Indonesia)" },
+  { value: "ms", label: "Malay (Bahasa Melayu)" },
+  { value: "th", label: "Thai (ภาษาไทย)" },
+  { value: "vi", label: "Vietnamese (Tiếng Việt)" },
+  { value: "bn", label: "Bengali (বাংলা)" },
+  { value: "ro", label: "Romanian (Română)" },
 ];
+
+// Build currency → default VAT rate map; skip ambiguous currencies (e.g. EUR used by 12+ countries)
+const CURRENCY_VAT_DEFAULTS: Record<string, number> = (() => {
+  const counts: Record<string, number> = {};
+  const rates: Record<string, number> = {};
+  for (const c of COUNTRIES) {
+    counts[c.currency] = (counts[c.currency] ?? 0) + 1;
+    rates[c.currency] = c.vatRate;
+  }
+  return Object.fromEntries(Object.entries(rates).filter(([cur]) => counts[cur] === 1));
+})();
 
 const CURRENCIES = [
   "AED", "AUD", "BDT", "BHD", "CAD", "CHF", "CNY", "DKK", "EGP", "EUR", "GBP", "IDR", "ILS", "INR",
   "JOD", "JPY", "KES", "KRW", "KWD", "LBP", "MAD", "MXN", "MYR", "NGN", "NOK", "NZD", "OMR", "PHP",
   "PKR", "PLN", "QAR", "SAR", "SEK", "SGD", "THB", "TND", "TRY", "USD", "VND", "ZAR",
 ];
+
+function computeDueDate(issueDate: string, days: string): string | null {
+  const d = parseInt(days, 10);
+  if (!issueDate || isNaN(d) || d <= 0) return null;
+  const date = new Date(issueDate + "T00:00:00Z");
+  date.setUTCDate(date.getUTCDate() + d);
+  return date.toISOString().slice(0, 10);
+}
+
+function initDueDateDays(issueDate?: string, dueDate?: string): string {
+  if (!issueDate || !dueDate) return "";
+  const days = Math.round((new Date(dueDate + "T00:00:00Z").getTime() - new Date(issueDate + "T00:00:00Z").getTime()) / 86400000);
+  return days > 0 ? String(days) : "";
+}
 
 function emptyLine(): InvoiceLineItemInput {
   return { description: "", unit: "pcs", quantity: "1", unit_price: "0", vat_category: "standard" };
@@ -128,15 +176,16 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
   const [supplierId, setSupplierId] = useState(invoice?.supplier_id ?? "");
   const [convertedFromId, setConvertedFromId] = useState<string | null>(invoice?.converted_from_id ?? null);
   const [issueDate, setIssueDate] = useState(invoice?.issue_date ?? todayIso());
-  const [dueDate, setDueDate] = useState(invoice?.due_date ?? "");
+  const [dueDateDays, setDueDateDays] = useState(() => initDueDateDays(invoice?.issue_date, invoice?.due_date ?? undefined));
   const [currency, setCurrency] = useState(invoice?.currency ?? "");
-  const [exchangeRate, setExchangeRate] = useState(invoice?.exchange_rate ?? "1");
+  const [documentVatRate, setDocumentVatRate] = useState(invoice?.vat_rate_override ?? "");
   const [notes, setNotes] = useState(invoice?.notes ?? "");
   const [terms, setTerms] = useState(invoice?.terms ?? "");
   const [discountAmount, setDiscountAmount] = useState(invoice?.discount_amount ?? "0");
   const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>(invoice?.pdf_template ?? "minimal");
   const [accentColor, setAccentColor] = useState(invoice?.accent_color ?? "");
-  const [language, setLanguage] = useState<InvoiceLanguage>(invoice?.language ?? "en");
+  const [language, setLanguage] = useState(invoice?.language ?? "en");
+  const [languageSecondary, setLanguageSecondary] = useState(invoice?.language_secondary ?? "");
   const [lpoNo, setLpoNo] = useState(invoice?.lpo_no ?? "");
   const [projectVillaNo, setProjectVillaNo] = useState(invoice?.project_villa_no ?? "");
   const [billToAddress, setBillToAddress] = useState(invoice?.bill_to_address ?? "");
@@ -176,13 +225,17 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
   });
   const priceByItemId = new Map(priceListItems?.map((p) => [p.item_id, p.price]));
   const country = resolveCountry(tenant?.country);
-  const vatRateOverride = tenant?.vat_rate !== undefined ? Number(tenant.vat_rate) : undefined;
+  const documentVatRateNum = documentVatRate !== "" ? Number(documentVatRate) : undefined;
+  const showArabicDesc = ["ar", "ur", "he"].includes(language) || ["ar", "ur", "he"].includes(languageSecondary);
 
   useEffect(() => {
-    if (invoice || !tenant?.currency) return;
+    if (invoice || !tenant) return;
     setCurrency((prev) => prev || tenant.currency);
+    if (documentVatRate === "" && tenant.vat_rate !== undefined) {
+      setDocumentVatRate(String(Number(tenant.vat_rate)));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant?.currency]);
+  }, [tenant?.currency, tenant?.vat_rate]);
 
   useEffect(() => {
     if (!selectedCustomer?.billing_address) return;
@@ -207,7 +260,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
     setLines(
       sourceInvoice.line_items.map((li) => {
         if (isQuotationToProforma) {
-          const computed = computeLine(li, country, vatRateOverride);
+          const computed = computeLine(li, country, documentVatRateNum);
           return {
             item_id: li.item_id,
             description: li.description,
@@ -247,15 +300,16 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
         customer_id: isSupplierDoc ? null : customerId || null,
         supplier_id: isSupplierDoc ? supplierId || null : null,
         issue_date: issueDate,
-        due_date: dueDate || null,
+        due_date: computeDueDate(issueDate, dueDateDays) || null,
         currency: currency || undefined,
-        exchange_rate: exchangeRate || "1",
         discount_amount: discountAmount || "0",
+        vat_rate_override: documentVatRate || null,
         notes: notes || null,
         terms: terms || null,
         pdf_template: pdfTemplate,
         accent_color: accentColor || null,
         language,
+        language_secondary: languageSecondary || null,
         lpo_no: type === "proforma" ? lpoNo || null : null,
         project_villa_no: type === "proforma" ? projectVillaNo || null : null,
         bill_to_address: type === "proforma" ? billToAddress || null : null,
@@ -320,6 +374,14 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
     if (newUnit !== "sqm") { patch.width_mm = null; patch.height_mm = null; }
     if (newUnit !== "lm") { patch.length_mm = null; }
     updateLine(index, patch);
+  }
+
+  function handleCurrencyChange(newCurrency: string) {
+    setCurrency(newCurrency);
+    const defaultRate = CURRENCY_VAT_DEFAULTS[newCurrency];
+    if (defaultRate !== undefined) {
+      setDocumentVatRate(String(defaultRate));
+    }
   }
 
   function applyItem(index: number, itemId: string) {
@@ -405,7 +467,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
     setLines((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
   }
 
-  const totals = computeTotals(lines, discountAmount, country, vatRateOverride);
+  const totals = computeTotals(lines, discountAmount, country, documentVatRateNum);
 
   return (
     <Card>
@@ -480,12 +542,24 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="due_date">{type === "quotation" ? "Valid until" : "Due date"}</Label>
-              <Input id="due_date" type="date" value={dueDate ?? ""} onChange={(e) => setDueDate(e.target.value)} />
+              <Label htmlFor="due_days">{type === "quotation" ? "Valid for (days)" : "Due in (days)"}</Label>
+              <Input
+                id="due_days"
+                type="number"
+                min="1"
+                placeholder="e.g. 30"
+                value={dueDateDays}
+                onChange={(e) => setDueDateDays(e.target.value)}
+              />
+              {computeDueDate(issueDate, dueDateDays) && (
+                <p className="text-caption text-muted-foreground">
+                  {type === "quotation" ? "Valid until" : "Due"} {computeDueDate(issueDate, dueDateDays)}
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="currency">Currency</Label>
-              <Select id="currency" value={currency || "AED"} onChange={(e) => setCurrency(e.target.value)}>
+              <Select id="currency" value={currency || "AED"} onChange={(e) => handleCurrencyChange(e.target.value)}>
                 {CURRENCIES.map((code) => (
                   <option key={code} value={code}>
                     {code}
@@ -493,19 +567,18 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 ))}
               </Select>
             </div>
-            {currency && currency !== tenant?.currency && (
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="exchange_rate">Exchange rate (to {tenant?.currency ?? "base currency"})</Label>
-                <Input
-                  id="exchange_rate"
-                  type="number"
-                  step="0.000001"
-                  min="0"
-                  value={exchangeRate}
-                  onChange={(e) => setExchangeRate(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="vat_rate">Tax rate (%)</Label>
+              <Input
+                id="vat_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g. 5"
+                value={documentVatRate}
+                onChange={(e) => setDocumentVatRate(e.target.value)}
+              />
+            </div>
           </div>
 
           {type === "proforma" && (
@@ -570,7 +643,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
             {/* Mobile / tablet stacked cards — hidden on lg+ where the table fits */}
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border lg:hidden">
               {lines.map((line, index) => {
-                const computed = computeLine(line, country, vatRateOverride);
+                const computed = computeLine(line, country, documentVatRateNum);
                 const lineUnit = line.unit ?? items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
                 const isSqm = lineUnit === "sqm";
                 const isLm = lineUnit === "lm";
@@ -618,7 +691,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                         value={line.description}
                         onChange={(e) => updateLine(index, { description: e.target.value })}
                       />
-                      {language !== "en" && (
+                      {showArabicDesc && (
                         <Textarea
                           rows={2}
                           className="mt-1"
@@ -842,7 +915,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 </thead>
                 <tbody>
                   {lines.map((line, index) => {
-                    const computed = computeLine(line, country, vatRateOverride);
+                    const computed = computeLine(line, country, documentVatRateNum);
                     const lineUnit = line.unit ?? items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
                     const isSqm = lineUnit === "sqm";
                     const isLm = lineUnit === "lm";
@@ -873,7 +946,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
-                            {language !== "en" && (
+                            {showArabicDesc && (
                               <Textarea
                                 rows={2}
                                 className="mt-1"
@@ -963,7 +1036,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                               value={line.description}
                               onChange={(e) => updateLine(index, { description: e.target.value })}
                             />
-                            {language !== "en" && (
+                            {showArabicDesc && (
                               <Textarea
                                 rows={2}
                                 className="mt-1"
@@ -1246,8 +1319,19 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="language">Language</Label>
-                  <Select id="language" value={language} onChange={(e) => setLanguage(e.target.value as InvoiceLanguage)}>
-                    {INVOICE_LANGUAGES.map((option) => (
+                  <Select id="language" value={language} onChange={(e) => setLanguage(e.target.value)}>
+                    {DOCUMENT_LANGUAGES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="language_secondary">Second language (optional)</Label>
+                  <Select id="language_secondary" value={languageSecondary} onChange={(e) => setLanguageSecondary(e.target.value)}>
+                    <option value="">None</option>
+                    {DOCUMENT_LANGUAGES.filter((o) => o.value !== language).map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>

@@ -56,6 +56,8 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TenantScopedMixin, TimestampMixin):
     language: Mapped[InvoiceLanguage] = mapped_column(
         Enum(InvoiceLanguage, native_enum=False), default=InvoiceLanguage.EN
     )
+    language_secondary: Mapped[str | None] = mapped_column(String(10), nullable=True, default=None)
+    vat_rate_override: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True, default=None)
 
     lpo_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
     project_villa_no: Mapped[str | None] = mapped_column(String(128), nullable=True)
