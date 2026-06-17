@@ -7,7 +7,6 @@ import { ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { reportsApi } from "@/lib/api/reports";
 import { tenantsApi } from "@/lib/api/tenants";
 import { downloadCsv } from "@/lib/csv";
@@ -65,18 +64,12 @@ export default function ProfitLossPage() {
         </Button>
       </div>
 
-      <Card className="max-w-md">
-        <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="date_from">From</Label>
-            <Input id="date_from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="date_to">To</Label>
-            <Input id="date_to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+        <span className="text-body-sm font-medium text-foreground">Period</span>
+        <Input id="date_from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-36 text-body-sm" />
+        <span className="text-body-sm text-muted-foreground">to</span>
+        <Input id="date_to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-36 text-body-sm" />
+      </div>
 
       <Card className="max-w-xl">
         <CardHeader>
