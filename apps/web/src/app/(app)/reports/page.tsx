@@ -51,6 +51,14 @@ function fmt(value: number | string | undefined, currency: string): string {
   return `${currency} ${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** Compact number for donut center — avoids overflow at any amount size */
+function compact(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
 function yearStart(): string {
   return `${new Date().getFullYear()}-01-01`;
 }
@@ -264,9 +272,10 @@ export default function ReportsPage() {
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmt(v, currency)} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
                     <span className="text-caption text-muted-foreground">Total due</span>
-                    <span className="text-body font-semibold tabular-nums text-foreground">{fmt(agingTotal, currency)}</span>
+                    <span className="text-body font-semibold tabular-nums text-foreground">{compact(agingTotal)}</span>
+                    <span className="text-caption text-muted-foreground">{currency}</span>
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col gap-2">
@@ -405,9 +414,10 @@ export default function ReportsPage() {
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmt(v, currency)} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
                     <span className="text-caption text-muted-foreground">Total</span>
-                    <span className="text-body font-semibold tabular-nums text-foreground">{fmt(expenseTotal, currency)}</span>
+                    <span className="text-body font-semibold tabular-nums text-foreground">{compact(expenseTotal)}</span>
+                    <span className="text-caption text-muted-foreground">{currency}</span>
                   </div>
                 </div>
                 <div className="flex max-h-52 flex-1 flex-col gap-2 overflow-y-auto">
@@ -475,9 +485,10 @@ export default function ReportsPage() {
                         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmt(v, currency)} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
                       <span className="text-caption text-muted-foreground">Total</span>
-                      <span className="text-body-sm font-semibold tabular-nums">{fmt(totalAssets, currency)}</span>
+                      <span className="text-body-sm font-semibold tabular-nums text-foreground">{compact(totalAssets)}</span>
+                      <span className="text-caption text-muted-foreground">{currency}</span>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 text-body-sm">
@@ -515,9 +526,10 @@ export default function ReportsPage() {
                         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmt(v, currency)} />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
                       <span className="text-caption text-muted-foreground">Total</span>
-                      <span className="text-body-sm font-semibold tabular-nums">{fmt(liabEquity, currency)}</span>
+                      <span className="text-body-sm font-semibold tabular-nums text-foreground">{compact(liabEquity)}</span>
+                      <span className="text-caption text-muted-foreground">{currency}</span>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 text-body-sm">
