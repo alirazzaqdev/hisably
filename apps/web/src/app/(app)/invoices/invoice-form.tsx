@@ -37,6 +37,22 @@ import {
 } from "@/lib/api/invoices";
 import { createOrQueue } from "@/lib/offline/sync-engine";
 
+const LINE_UNIT_OPTIONS: { value: string; label: string }[] = [
+  { value: "pcs", label: "pcs" },
+  { value: "kg", label: "kg" },
+  { value: "sqm", label: "m² (SQM)" },
+  { value: "lm", label: "LM" },
+  { value: "box", label: "box" },
+  { value: "set", label: "set" },
+  { value: "hour", label: "hour" },
+];
+
+function unitQtyLabel(unit: string): string {
+  if (unit === "kg") return "Weight (kg)";
+  if (unit === "hour") return "Hours";
+  return "Qty";
+}
+
 const VAT_CATEGORIES: { value: VatCategory; label: string }[] = [
   { value: "standard", label: "Standard (5%)" },
   { value: "zero_rated", label: "Zero-rated" },
@@ -72,7 +88,7 @@ const CURRENCIES = [
 ];
 
 function emptyLine(): InvoiceLineItemInput {
-  return { description: "", quantity: "1", unit_price: "0", vat_category: "standard" };
+  return { description: "", unit: "pcs", quantity: "1", unit_price: "0", vat_category: "standard" };
 }
 
 function todayIso(): string {
@@ -135,6 +151,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
           item_id: li.item_id,
           description: li.description,
           description_ar: li.description_ar,
+          unit: li.unit ?? "pcs",
           quantity: li.quantity,
           width_mm: li.width_mm,
           height_mm: li.height_mm,
@@ -205,6 +222,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
           item_id: li.item_id,
           description: li.description,
           description_ar: li.description_ar,
+          unit: li.unit ?? "pcs",
           quantity: li.quantity,
           width_mm: li.width_mm,
           height_mm: li.height_mm,
@@ -276,19 +294,32 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
 
   function applyItemToLine(index: number, item: Item) {
     setLines((prev) =>
-      prev.map((line, i) =>
-        i === index
-          ? {
-              ...line,
-              item_id: item.id,
-              description: item.name,
-              description_ar: item.name_ar,
-              unit_price: priceByItemId.get(item.id) ?? item.sale_price,
-              vat_category: item.vat_category,
-            }
-          : line
-      )
+      prev.map((line, i) => {
+        if (i !== index) return line;
+        const newUnit = item.unit;
+        // Clear dimension fields when item changes to avoid stale SQM/LM values
+        const dimensionClear: Partial<InvoiceLineItemInput> =
+          newUnit !== "sqm" ? { width_mm: null, height_mm: null } : {};
+        if (newUnit !== "lm") dimensionClear.length_mm = null;
+        return {
+          ...line,
+          ...dimensionClear,
+          item_id: item.id,
+          description: item.name,
+          description_ar: item.name_ar,
+          unit: newUnit,
+          unit_price: priceByItemId.get(item.id) ?? item.sale_price,
+          vat_category: item.vat_category,
+        };
+      })
     );
+  }
+
+  function handleUnitChange(index: number, newUnit: string) {
+    const patch: Partial<InvoiceLineItemInput> = { unit: newUnit };
+    if (newUnit !== "sqm") { patch.width_mm = null; patch.height_mm = null; }
+    if (newUnit !== "lm") { patch.length_mm = null; }
+    updateLine(index, patch);
   }
 
   function applyItem(index: number, itemId: string) {
@@ -540,9 +571,11 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border lg:hidden">
               {lines.map((line, index) => {
                 const computed = computeLine(line, country, vatRateOverride);
-                const lineUnit = items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
+                const lineUnit = line.unit ?? items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
                 const isSqm = lineUnit === "sqm";
                 const isLm = lineUnit === "lm";
+                const isKg = lineUnit === "kg";
+                const isHour = lineUnit === "hour";
                 const showSizeRow = type !== "proforma" && (isSqm || isLm);
                 const isOverridden = Boolean(line.override_total);
                 return (
@@ -558,14 +591,24 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label>Item</Label>
-                      <Select value={line.item_id ?? ""} onChange={(e) => applyItem(index, e.target.value)}>
-                        <option value="">Custom</option>
-                        {items?.items.map((i) => (
-                          <option key={i.id} value={i.id}>{i.name}</option>
-                        ))}
-                      </Select>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Item</Label>
+                        <Select value={line.item_id ?? ""} onChange={(e) => applyItem(index, e.target.value)}>
+                          <option value="">Custom</option>
+                          {items?.items.map((i) => (
+                            <option key={i.id} value={i.id}>{i.name}</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label>Unit</Label>
+                        <Select value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
+                          {LINE_UNIT_OPTIONS.map((u) => (
+                            <option key={u.value} value={u.value}>{u.label}</option>
+                          ))}
+                        </Select>
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label>Description</Label>
@@ -718,15 +761,15 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                         )}
                         <div className="grid grid-cols-2 gap-3">
                           <div className="flex flex-col gap-1.5">
-                            <Label>Qty</Label>
+                            <Label>{showSizeRow ? (isSqm ? "Total SQM" : "Total LM") : unitQtyLabel(lineUnit)}</Label>
                             {showSizeRow ? (
-                              <span className="flex h-11 items-center text-body-sm tabular-nums text-muted-foreground" title="Total SQM/LM">
+                              <span className="flex h-11 items-center text-body-sm tabular-nums text-muted-foreground">
                                 {computed.quantity.toFixed(4)}
                               </span>
                             ) : (
                               <Input
                                 type="number"
-                                step="0.01"
+                                step={isKg ? "0.001" : "0.01"}
                                 min="0"
                                 value={line.quantity ?? "1"}
                                 onChange={(e) => updateLine(index, { quantity: e.target.value })}
@@ -777,7 +820,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 <thead className="border-b border-border bg-muted text-caption text-muted-foreground">
                   {type === "proforma" ? (
                     <tr>
-                      <th className="w-28 px-3 py-2 font-medium">Item</th>
+                      <th className="w-36 px-3 py-2 font-medium">Item / Unit</th>
                       <th className="px-3 py-2 font-medium">Description</th>
                       <th className="w-24 px-3 py-2 font-medium">QTY</th>
                       <th className="w-24 px-3 py-2 font-medium">Final Payment</th>
@@ -787,7 +830,7 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                     </tr>
                   ) : (
                     <tr>
-                      <th className="w-28 px-3 py-2 font-medium">Item</th>
+                      <th className="w-36 px-3 py-2 font-medium">Item / Unit</th>
                       <th className="px-3 py-2 font-medium">Description</th>
                       <th className="w-24 px-3 py-2 font-medium">Qty</th>
                       <th className="w-28 px-3 py-2 font-medium">Unit price</th>
@@ -800,9 +843,11 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                 <tbody>
                   {lines.map((line, index) => {
                     const computed = computeLine(line, country, vatRateOverride);
-                    const lineUnit = items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
+                    const lineUnit = line.unit ?? items?.items.find((i) => i.id === line.item_id)?.unit ?? "pcs";
                     const isSqm = lineUnit === "sqm";
                     const isLm = lineUnit === "lm";
+                    const isKg = lineUnit === "kg";
+                    const isHour = lineUnit === "hour";
                     const showSizeRow = type !== "proforma" && (isSqm || isLm);
                     const isOverridden = Boolean(line.override_total);
                     if (type === "proforma") {
@@ -813,6 +858,11 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                               <option value="">Custom</option>
                               {items?.items.map((i) => (
                                 <option key={i.id} value={i.id}>{i.name}</option>
+                              ))}
+                            </Select>
+                            <Select className="mt-1" value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
+                              {LINE_UNIT_OPTIONS.map((u) => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
                               ))}
                             </Select>
                           </td>
@@ -900,6 +950,11 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                                 <option key={i.id} value={i.id}>{i.name}</option>
                               ))}
                             </Select>
+                            <Select className="mt-1" value={lineUnit} onChange={(e) => handleUnitChange(index, e.target.value)}>
+                              {LINE_UNIT_OPTIONS.map((u) => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                              ))}
+                            </Select>
                           </td>
                           <td className="px-3 py-2">
                             <Textarea
@@ -925,13 +980,20 @@ export function InvoiceForm({ invoice, defaultType }: { invoice?: Invoice; defau
                                 {computed.quantity.toFixed(4)}
                               </span>
                             ) : (
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={line.quantity ?? "1"}
-                                onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                              />
+                              <div className="flex flex-col gap-0.5">
+                                {(isKg || isHour) && (
+                                  <span className="text-caption text-muted-foreground">
+                                    {isKg ? "kg" : "hr"}
+                                  </span>
+                                )}
+                                <Input
+                                  type="number"
+                                  step={isKg ? "0.001" : "0.01"}
+                                  min="0"
+                                  value={line.quantity ?? "1"}
+                                  onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                                />
+                              </div>
                             )}
                           </td>
                           <td className="px-3 py-2">

@@ -16,6 +16,7 @@ export interface InvoiceLineItem {
   item_id: string | null;
   description: string;
   description_ar: string | null;
+  unit: string | null;
   quantity: string;
   width_mm: string | null;
   height_mm: string | null;
@@ -36,6 +37,7 @@ export interface InvoiceLineItemInput {
   item_id?: string | null;
   description: string;
   description_ar?: string | null;
+  unit?: string | null;
   quantity?: string | null;
   width_mm?: string | null;
   height_mm?: string | null;

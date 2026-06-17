@@ -69,6 +69,8 @@ class ItemUnit(str, enum.Enum):
     LM = "lm"
     BOX = "box"
     LTR = "ltr"
+    SET = "set"
+    HOUR = "hour"
 
 
 class UserRole(str, enum.Enum):

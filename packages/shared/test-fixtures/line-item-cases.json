@@ -61,6 +61,21 @@
       "name": "defaults_quantity_to_one",
       "input": { "description": "Service fee", "unit_price": 5000, "vat_category": "standard" },
       "expected": { "quantity": 1, "computed_gross": 5000, "gross_amount": 5000, "discount_applied": 0, "taxable_amount": 5000, "vat_rate": 5, "vat_amount": 250, "line_total": 5250 }
+    },
+    {
+      "name": "kg_line",
+      "input": { "description": "Steel rod", "quantity": 3.5, "unit_price": 200, "vat_category": "standard" },
+      "expected": { "quantity": 3.5, "computed_gross": 700, "gross_amount": 700, "discount_applied": 0, "taxable_amount": 700, "vat_rate": 5, "vat_amount": 35, "line_total": 735 }
+    },
+    {
+      "name": "hour_line",
+      "input": { "description": "Labour", "quantity": 8, "unit_price": 5000, "vat_category": "standard" },
+      "expected": { "quantity": 8, "computed_gross": 40000, "gross_amount": 40000, "discount_applied": 0, "taxable_amount": 40000, "vat_rate": 5, "vat_amount": 2000, "line_total": 42000 }
+    },
+    {
+      "name": "sqm_6450x5650_rate_1100",
+      "input": { "description": "Glass 6450x5650", "width_mm": 6450, "height_mm": 5650, "quantity": 1, "unit_price": 110000, "vat_category": "standard" },
+      "expected": { "quantity": 36.4425, "computed_gross": 4008675, "gross_amount": 4008675, "discount_applied": 0, "taxable_amount": 4008675, "vat_rate": 5, "vat_amount": 200434, "line_total": 4209109 }
     }
   ]
 }

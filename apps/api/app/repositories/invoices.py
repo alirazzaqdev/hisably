@@ -60,6 +60,7 @@ def _build_line_items(
                 item_id=input_line.item_id,
                 description=input_line.description,
                 description_ar=input_line.description_ar,
+                unit=input_line.unit or "pcs",
                 quantity=Decimal(str(computed.quantity)),
                 width_mm=input_line.width_mm,
                 height_mm=input_line.height_mm,

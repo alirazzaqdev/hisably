@@ -9,7 +9,7 @@ export type Country = string;
 
 export type VatCategory = "standard" | "zero_rated" | "exempt";
 
-export type ItemUnit = "pcs" | "sqm" | "sqft" | "kg" | "m" | "box" | "ltr";
+export type ItemUnit = "pcs" | "sqm" | "sqft" | "kg" | "m" | "lm" | "box" | "ltr" | "set" | "hour";
 
 export type InvoiceType =
   | "tax_invoice"
@@ -43,6 +43,7 @@ export interface InvoiceLineItemInput {
   itemId?: string;
   description: string;
   descriptionAr?: string;
+  unit?: string;
   /**
    * Quantity multiplier. For SQM/LM lines this multiplies the per-unit area
    * or length (default 1). Ignored as a standalone value when widthMm/heightMm

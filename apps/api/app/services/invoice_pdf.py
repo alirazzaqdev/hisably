@@ -413,19 +413,27 @@ def render_invoice_pdf(invoice: Invoice, tenant: Tenant, customer: Customer | No
 
         body_rows_raw = []
         for idx, line in enumerate(line_items, start=1):
+            line_unit = getattr(line, "unit", None) or "pcs"
             if line.width_mm is not None and line.height_mm is not None:
                 size_cols = (_format_decimal(line.width_mm), _format_decimal(line.height_mm))
+                qty_display = _format_decimal(line.quantity)
             elif line.length_mm is not None:
                 size_cols = (_format_decimal(line.length_mm), "")
+                qty_display = _format_decimal(line.quantity)
+            elif line_unit in ("kg", "hour"):
+                size_cols = ("", "")
+                suffix = "kg" if line_unit == "kg" else "hr"
+                qty_display = f"{_format_decimal(line.quantity)} {suffix}"
             else:
                 size_cols = ("", "")
+                qty_display = _format_decimal(line.quantity)
             body_rows_raw.append(
                 [
                     (str(idx), "CENTER"),
                     (_line_description(line, language), "LEFT"),
                     (size_cols[0], "CENTER"),
                     (size_cols[1], "CENTER"),
-                    (_format_decimal(line.quantity), "RIGHT"),
+                    (qty_display, "RIGHT"),
                     (f"{line.unit_price:.2f}", "RIGHT"),
                     (f"{line.vat_rate:.0f}%", "RIGHT"),
                     (f"{line.line_total:.2f}", "RIGHT"),

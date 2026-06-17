@@ -82,6 +82,7 @@ class InvoiceLineItem(Base, UUIDPrimaryKeyMixin):
 
     description: Mapped[str] = mapped_column(String(500))
     description_ar: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(16), nullable=True, default="pcs")
 
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=1)
     width_mm: Mapped[Decimal | None] = mapped_column(Numeric(12, 3), nullable=True)
