@@ -9,8 +9,8 @@ from app.models.enums import InvoiceLanguage, InvoiceStatus, InvoiceType, PdfTem
 
 class InvoiceLineItemInput(BaseModel):
     item_id: uuid.UUID | None = None
-    description: str = Field(min_length=1, max_length=500)
-    description_ar: str | None = Field(default=None, max_length=500)
+    description: str = Field(min_length=1)
+    description_ar: str | None = None
     unit: str | None = Field(default="pcs", max_length=16)
     quantity: Decimal | None = None
     width_mm: Decimal | None = None

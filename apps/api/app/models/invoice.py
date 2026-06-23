@@ -85,8 +85,8 @@ class InvoiceLineItem(Base, UUIDPrimaryKeyMixin):
     invoice_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("invoices.id"), index=True)
     item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("items.id"), nullable=True)
 
-    description: Mapped[str] = mapped_column(String(500))
-    description_ar: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    description: Mapped[str] = mapped_column(Text)
+    description_ar: Mapped[str | None] = mapped_column(Text, nullable=True)
     unit: Mapped[str | None] = mapped_column(String(16), nullable=True, default="pcs")
 
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3), default=1)
